@@ -6,7 +6,7 @@ import {
   getWalletBalance, 
   sendETH,
   sendUSDC,
-  sendUSDCFaucet,
+  sendTestTokens,
   parseSendCommand, 
   validateAmount,
   validateUSDCAmount,
@@ -16,6 +16,35 @@ import {
 
 const router = express.Router();
 const MessagingResponse = twilio.twiml.MessagingResponse;
+
+router.post("/send-welcome", async (req: Request, res: Response) => {
+  const { phone, userName } = req.body; // optional variable if your template has placeholders
+
+  if (!phone) {
+    return res.status(400).json({ success: false, error: "Phone number is required" });
+  }
+
+  try {
+    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+
+    // Replace with your actual template content SID (from Twilio Console)
+    const templateSid = process.env.TWILIO_TEMPLATE_SID; 
+
+    await client.messages.create({
+      from: process.env.TWILIO_WHATSAPP_NUMBER,
+      to: "whatsapp:" + phone,
+      contentSid: templateSid,
+      contentVariables: JSON.stringify({
+        "1": userName || "Newbie", // matches {{1}} in your template
+      })
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("❌ Twilio template send error:", error);
+    return res.status(500).json({ success: false, error: "Failed to send template message" });
+  }
+});
 
 router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
   const twiml = new MessagingResponse();
@@ -28,15 +57,20 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
     if (message === "create wallet") {
       try {
-        const { walletAddress } = await createWalletForUser(phoneNumber);
-        twiml.message(`✅ *Wallet Created Successfully!*\n\n💼 *Address:*\n${walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`);
+        const result = await createWalletForUser(phoneNumber);
+        
+        if (result.alreadyExists) {
+          twiml.message(`ℹ️ *You Already Have a Wallet!*\n\n💼 *Your Address:*\n${result.walletAddress}\n\n💡 *Available commands:*\n• balance - Check your balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 *Security:* One wallet per phone number`);
+        } else {
+          twiml.message(`✅ *Wallet Created Successfully!*\n\n💼 *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`);
+        }
       } catch (error) {
         console.error("Wallet creation error:", error);
         twiml.message("❌ Failed to create wallet. Please try again later.");
       }
     } 
     
-    else if (message === "balance") {
+    else if (message === "balance" || message === "Check Balance") {
       try {
         const balance = await getWalletBalance(phoneNumber);
         twiml.message(`💰 *Your Wallet Balance*\n\n💎 ${balance.eth} ETH\n🪙 ${balance.usdc} USDC\n\n📍 *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`);
@@ -46,7 +80,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       }
     }
     
-    else if (message === "history") {
+    else if (message === "history" || message === "Transaction History") {
       try {
         const history = await getTransactionHistory(phoneNumber);
         twiml.message(`📈 *Transaction History*\n\n${history}\n\n💡 Full history available on Arbiscan`);
@@ -56,9 +90,9 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       }
     }
     
-    else if (message === "receive test token" || message === "faucet") {
+    else if (message === "receive test token" || message === "faucet" || message === "Request Test Tokens") {
       try {
-        const faucetResult = await sendUSDCFaucet(phoneNumber);
+        const faucetResult = await sendTestTokens(phoneNumber);
         twiml.message(`🚰 *Test Token Faucet*\n\n${faucetResult}\n\n💡 Check your balance with 'balance' command`);
       } catch (error) {
         console.error("Faucet error:", error);

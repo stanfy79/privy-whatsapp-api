@@ -17,6 +17,7 @@
     "@circle-fin/developer-controlled-wallets": "^8.4.1",
     "@privy-io/node": "^0.1.0",
     "axios": "^1.12.2",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
@@ -29,6 +30,7 @@
     "viem": "^2.37.8"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
     "ts-node": "^10.9.2",

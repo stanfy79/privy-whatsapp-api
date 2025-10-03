@@ -109,43 +109,57 @@ const CIRCLE_ENTITY_SECRET = process.env.CIRCLE_ENTITY_SECRET;
 // Your existing functions remain the same...
 export async function createWalletForUser(
   phoneNumber: string
-): Promise<{ privyId: string; walletAddress: string; walletId: string }> {
+): Promise<{ privyId: string; walletAddress: string; walletId: string; alreadyExists: boolean }> {
   try {
+    // Check if user already has a wallet
+    console.log(`Checking if wallet exists for phone: ${phoneNumber}`);
+    const existingUser = await getUser(phoneNumber);
+    if (existingUser && existingUser.walletAddress) {
+      console.log(`User already has a wallet: ${existingUser.walletAddress}`);
+      return {
+        privyId: existingUser.privyId,
+        walletAddress: existingUser.walletAddress,
+        walletId: existingUser.walletId || '',
+        alreadyExists: true
+      };
+    }
+    console.log(`No existing wallet found, proceeding with creation...`);
+
     // Step 1: Create user first
     let user;
     try {
-      console.log(`🔄 Creating user for phone: ${phoneNumber}`);
+      console.log(`Creating user for phone: ${phoneNumber}`);
 
       // Try creating user with phone account
       user = await privy.users().create({
         linked_accounts: [
           {
             type: "phone",
-            number: phoneNumber, // Remove + sign
+            number: phoneNumber,
           },
         ],
       });
-      console.log(`✅ Created user with ID: ${user.id}`);
+      console.log(`Created user with ID: ${user.id}`);
     } catch (error) {
       console.error(
-        `❌ Phone user creation failed, trying alternative approach...`
+        `Phone user creation failed, trying alternative approach...`
       );
       console.error(`Full error object:`, error);
 
       // Try creating user with custom auth instead
       try {
-        console.log(`🔄 Trying custom auth user creation...`);
+        console.log(`Trying custom auth user creation...`);
         user = await privy.users().create({
           linked_accounts: [
             {
               type: "custom_auth",
-              custom_user_id: phoneNumber.replace(/\+/g, ""), // Remove + sign
+              custom_user_id: phoneNumber.replace(/\+/g, ""),
             },
           ],
         });
-        console.log(`✅ Created user with custom auth ID: ${user.id}`);
+        console.log(`Created user with custom auth ID: ${user.id}`);
       } catch (customError) {
-        console.error(`❌ Custom auth creation also failed:`, customError);
+        console.error(`Custom auth creation also failed:`, customError);
 
         if (error instanceof APIError) {
           console.log(
@@ -215,7 +229,7 @@ export async function createWalletForUser(
     await saveUser(phoneNumber, privyId, walletAddress, walletId);
     console.log(`User data saved for phone: ${phoneNumber}`);
 
-    return { privyId, walletAddress, walletId };
+    return { privyId, walletAddress, walletId, alreadyExists: false };
   } catch (error) {
     console.error("Error creating wallet for user:", error);
     throw new Error(
@@ -576,105 +590,93 @@ export async function sendUSDC(
 }
 
 /**
- * NEW: USDC Faucet using Circle SDK
+ * Unified Faucet - Sends both ETH and USDC test tokens
  */
-export async function sendUSDCFaucet(phoneNumber: string): Promise<string> {
-  try {
-    const user: User | null = await getUser(phoneNumber);
-    if (!user) throw new Error("User not found. Create a wallet first.");
+export async function sendTestTokens(phoneNumber: string): Promise<string> {
+  const user = await getUser(phoneNumber);
+  if (!user) throw new Error("User not found. Create a wallet first.");
 
-    console.log(`Sending USDC faucet to: ${user.walletId}`);
+  const ETH_FAUCET_AMOUNT = "0.01";
+  const USDC_FAUCET_AMOUNT = "10";
 
-    // Method 1: Using Circle's Testnet Faucet API (if available)
-    if (CIRCLE_API_KEY) {
-      try {
-        // Initialize the client with your API key and entity secret
+  // Method 1: Self-funded wallet (Primary)
+  if (process.env.FAUCET_PRIVATE_KEY) {
+    try {
+      const faucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
+      const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, faucetWallet);
 
-        const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+      const faucetEthBalance = await provider.getBalance(faucetWallet.address);
+      const faucetUsdcBalance = await usdcContract.balanceOf(faucetWallet.address);
 
-        const client = initiateDeveloperControlledWalletsClient({
-          apiKey: process.env.CIRCLE_API_KEY!,
-          entitySecret: entitySecret,
+      const requiredEth = ethers.parseEther(ETH_FAUCET_AMOUNT);
+      const requiredUsdc = ethers.parseUnits(USDC_FAUCET_AMOUNT, USDC_DECIMALS);
+
+      let ethTxHash = "";
+      let usdcTxHash = "";
+      let successMessage = "✅ *Faucet Success!*\n\n";
+
+      // Send ETH if available
+      if (faucetEthBalance >= requiredEth) {
+        const ethTx = await faucetWallet.sendTransaction({
+          to: user.walletAddress,
+          value: requiredEth,
         });
-
-        const walletId = user.walletId;
-
-        const walletResponse = await client.getWallet({
-          id: walletId!,
-        });
-
-        if (!walletResponse.data?.wallet) {
-          throw new Error("Wallet not found");
-        }
-
-        const walletAddress = walletResponse.data.wallet.address;
-        console.log(
-          `Requesting testnet tokens for wallet address: ${walletAddress}`
-        );
-
-        // Request testnet tokens
-        // You can choose which blockchain testnet to use and which tokens to request
-        const response = await client.requestTestnetTokens({
-          address: walletAddress,
-          blockchain: TestnetBlockchain.ArbSepolia, // Choose the appropriate testnet
-          usdc: true, // Request USDC testnet tokens
-          native: true, // Request native testnet tokens (e.g., ETH on Sepolia)
-          eurc: false, // Not requesting EURC testnet tokens
-        });
-
-        console.log("Testnet tokens requested successfully");
-
-        console.log(`Check your wallet ${walletAddress} on the ${TestnetBlockchain.EthSepolia} explorer to see the tokens`);
-
-        // if (response.data.success) {
-        //   return `✅ Faucet Success! Sent test USDC to your wallet.\n\nTransaction ID: ${response.data.transactionId}`;
-        // }
-      } catch (error) {
-        console.error(
-          "Circle faucet failed, trying alternative method:",
-          error
-        );
+        await ethTx.wait();
+        ethTxHash = ethTx.hash;
+        successMessage += `💎 Sent ${ETH_FAUCET_AMOUNT} ETH\n`;
+      } else {
+        successMessage += `⚠️ ETH faucet empty\n`;
       }
+
+      // Send USDC if available
+      if (faucetUsdcBalance >= requiredUsdc) {
+        const usdcTx = await usdcContract.transfer(user.walletAddress, requiredUsdc);
+        await usdcTx.wait();
+        usdcTxHash = usdcTx.hash;
+        successMessage += `🪙 Sent ${USDC_FAUCET_AMOUNT} USDC\n`;
+      } else {
+        successMessage += `⚠️ USDC faucet empty\n`;
+      }
+
+      if (ethTxHash || usdcTxHash) {
+        successMessage += `\n📍 *To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
+        if (ethTxHash) successMessage += `🔗 ETH: ${ethTxHash.substring(0, 10)}...\n`;
+        if (usdcTxHash) successMessage += `🔗 USDC: ${usdcTxHash.substring(0, 10)}...\n`;
+        successMessage += `\n💡 Check balance with 'balance'`;
+        return successMessage;
+      }
+    } catch (error) {
+      console.error("Self-funded faucet error:", error);
     }
-
-    // Method 2: Alternative faucet approach using a funded wallet
-    // You would need to set up a funded wallet for this
-    const FAUCET_AMOUNT = "1"; // 10 test USDC
-
-    if (process.env.FAUCET_PRIVATE_KEY) {
-      const faucetWallet = new ethers.Wallet(
-        process.env.FAUCET_PRIVATE_KEY,
-        provider
-      );
-      const contract = new ethers.Contract(
-        USDC_CONTRACT_ADDRESS,
-        ERC20_ABI,
-        faucetWallet
-      );
-
-      const tx = await contract.transfer(
-        user.walletAddress,
-        ethers.parseUnits(FAUCET_AMOUNT, USDC_DECIMALS)
-      );
-
-      await tx.wait();
-
-      return `✅ Faucet Success! Sent ${FAUCET_AMOUNT} test USDC to your wallet.\n\nTX Hash: ${tx.hash.substring(
-        0,
-        10
-      )}...${tx.hash.substring(56)}`;
-    }
-
-    // Method 3: Return instructions for manual faucet
-    return `🚰 USDC Test Faucet\n\nTo get test USDC:\n1. Visit: https://faucet.circle.com\n2. Enter your address: ${user.walletAddress}\n3. Request test USDC\n\n💡 Or use Arbitrum Sepolia bridge from other test tokens.`;
-  } catch (error) {
-    console.error("Error with USDC faucet:", error);
-    throw new Error(
-      `Failed to send USDC faucet: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
   }
+
+  // Method 2: Circle SDK (Fallback)
+  if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
+    try {
+      const client = initiateDeveloperControlledWalletsClient({
+        apiKey: CIRCLE_API_KEY,
+        entitySecret: CIRCLE_ENTITY_SECRET,
+      });
+
+      const walletResponse = await client.getWallet({ id: user.walletId });
+      if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
+
+      await client.requestTestnetTokens({
+        address: walletResponse.data.wallet.address,
+        blockchain: TestnetBlockchain.ArbSepolia,
+        usdc: true,
+        native: true,
+        eurc: false,
+      });
+
+      return `✅ *Faucet Request Sent!*\n\n💎 Test ETH requested\n🪙 Test USDC requested\n\n📍 ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\n⏳ Processing: 1-2 minutes\n💡 Check with 'balance'`;
+    } catch (error) {
+      console.error("Circle SDK error:", error);
+    }
+  }
+
+  // Method 3: Manual instructions
+  return `🚰 *Test Token Faucet*\n\nGet tokens manually:\n\n💎 *ETH:* https://faucet.arbitrum.io/\n🪙 *USDC:* Bridge from Sepolia\n\n📍 *Your Address:*\n${user.walletAddress}\n\n💡 Check with 'balance' after`;
 }
 
 // Parse send command for both ETH and USDC
