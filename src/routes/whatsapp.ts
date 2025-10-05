@@ -1,6 +1,6 @@
 // src/routes/whatsapp.ts - Twilio WhatsApp format
 import express, { Request, Response } from "express";
-import twilio from "twilio";
+import axios from "axios";
 import { 
   createWalletForUser, 
   getWalletBalance, 
@@ -15,174 +15,203 @@ import {
 } from "../services/walletService";
 
 const router = express.Router();
-const MessagingResponse = twilio.twiml.MessagingResponse;
 
-router.post("/send-welcome", async (req: Request, res: Response) => {
-  const { phone, userName } = req.body; // optional variable if your template has placeholders
+// Environment variables
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN!;
+const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID!;
 
-  if (!phone) {
-    return res.status(400).json({ success: false, error: "Phone number is required" });
-  }
-
+// Utility to send WhatsApp messages
+async function sendWhatsAppMessage(to: string, text: string) {
   try {
-    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
-
-    // Replace with your actual template content SID (from Twilio Console)
-    const templateSid = process.env.TWILIO_TEMPLATE_SID; 
-
-    await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER,
-      to: "whatsapp:" + phone,
-      contentSid: templateSid,
-      contentVariables: JSON.stringify({
-        "1": userName || "Newbie", // matches {{1}} in your template
-      })
-    });
-
-    return res.json({ success: true });
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${WHATSAPP_PHONE_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        text: { body: text },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (error) {
-    console.error("❌ Twilio template send error:", error);
-    return res.status(500).json({ success: false, error: "Failed to send template message" });
+    console.error("❌ Failed to send WhatsApp message:", error);
   }
-});
+}
 
+
+// POST webhook for WhatsApp Cloud API
 router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
-  const twiml = new MessagingResponse();
-
   try {
-    const phoneNumber = req.body.From.replace("whatsapp:", "");
-    const message = (req.body.Body || "").trim().toLowerCase();
+    // Verify incoming message
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const messages = changes?.value?.messages;
 
-    console.log(`📱 Message from ${phoneNumber}: "${message}"`);
+    if (!messages || !messages[0]) {
+      return res.sendStatus(200);
+    }
 
-    if (message === "create wallet") {
+    const message = messages[0];
+    const phoneNumber = message.from;
+    const text = (message.text?.body || "").trim().toLowerCase();
+
+    console.log(`📱 Message from ${phoneNumber}: "${text}"`);
+
+    // --- Command: CREATE WALLET ---
+    if (text === "create wallet") {
       try {
         const result = await createWalletForUser(phoneNumber);
-        
+
         if (result.alreadyExists) {
-          twiml.message(`ℹ️ *You Already Have a Wallet!*\n\n💼 *Your Address:*\n${result.walletAddress}\n\n💡 *Available commands:*\n• balance - Check your balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 *Security:* One wallet per phone number`);
+          await sendWhatsAppMessage(
+            phoneNumber,
+            `ℹ️ *You Already Have a Wallet!*\n\n💼 *Your Address:*\n${result.walletAddress}\n\n💡 *Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 One wallet per phone number`
+          );
         } else {
-          twiml.message(`✅ *Wallet Created Successfully!*\n\n💼 *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`);
+          await sendWhatsAppMessage(
+            phoneNumber,
+            `✅ *Wallet Created Successfully!*\n\n💼 *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`
+          );
         }
       } catch (error) {
         console.error("Wallet creation error:", error);
-        twiml.message("❌ Failed to create wallet. Please try again later.");
+        await sendWhatsAppMessage(phoneNumber, "❌ Failed to create wallet. Try again later.");
       }
-    } 
-    
-    else if (message === "balance" || message === "Check Balance") {
+    }
+
+    // --- Command: BALANCE ---
+    else if (text === "balance") {
       try {
         const balance = await getWalletBalance(phoneNumber);
-        twiml.message(`💰 *Your Wallet Balance*\n\n💎 ${balance.eth} ETH\n🪙 ${balance.usdc} USDC\n\n📍 *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`);
+        await sendWhatsAppMessage(
+          phoneNumber,
+          `💰 *Your Wallet Balance*\n\n💎 ${balance.eth} ETH\n🪙 ${balance.usdc} USDC\n\n📍 *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`
+        );
       } catch (error) {
         console.error("Balance error:", error);
-        twiml.message("❌ Failed to check balance. Create a wallet first by sending 'create wallet'.");
+        await sendWhatsAppMessage(phoneNumber, "❌ Failed to check balance. Create a wallet first with 'create wallet'.");
       }
     }
-    
-    else if (message === "history" || message === "Transaction History") {
+
+    // --- Command: HISTORY ---
+    else if (text === "history") {
       try {
         const history = await getTransactionHistory(phoneNumber);
-        twiml.message(`📈 *Transaction History*\n\n${history}\n\n💡 Full history available on Arbiscan`);
+        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n💡 Check full history on Arbiscan`);
       } catch (error) {
         console.error("History error:", error);
-        twiml.message("❌ Failed to get transaction history.");
+        await sendWhatsAppMessage(phoneNumber, "❌ Failed to fetch history.");
       }
     }
-    
-    else if (message === "receive test token" || message === "faucet" || message === "Request Test Tokens") {
+
+    // --- Command: RECEIVE TEST TOKEN ---
+    else if (["receive test token", "faucet", "request test tokens"].includes(text)) {
       try {
         const faucetResult = await sendTestTokens(phoneNumber);
-        twiml.message(`🚰 *Test Token Faucet*\n\n${faucetResult}\n\n💡 Check your balance with 'balance' command`);
+        await sendWhatsAppMessage(phoneNumber, `🚰 *Test Token Faucet*\n\n${faucetResult}\n\n💡 Use 'balance' to check tokens`);
       } catch (error) {
         console.error("Faucet error:", error);
-        twiml.message("❌ Failed to send test tokens. Make sure you have a wallet created first.");
+        await sendWhatsAppMessage(phoneNumber, "❌ Failed to send test tokens. Make sure you have a wallet first.");
       }
     }
-    
-    else if (message.startsWith("send ")) {
-      try {
-        const sendData = parseSendCommand(message);
-        
-        if (!sendData) {
-          twiml.message(`❌ *Invalid send format*\n\n✅ *Correct formats:*\n• "send 0.5 eth to 0x1234..."\n• "send 100 usdc to 0x1234..."\n\n📝 *Examples:*\n• send 0.1 eth to 0xabcd1234...\n• send 50 usdc to 0xabcd1234...`);
-        } else {
-          const { amount, address, token } = sendData;
-          
-          // Validate amount based on token type
-          const isValidAmount = token === 'ETH' ? validateAmount(amount) : validateUSDCAmount(amount);
-          
-          if (!isValidAmount) {
-            const maxAmount = token === 'ETH' ? '10 ETH' : '1000 USDC';
-            twiml.message(`❌ *Invalid amount: ${amount} ${token}*\n\n✅ *Valid range:* 0.001 - ${maxAmount}\n\n💡 *Example:* send ${token === 'ETH' ? '0.5 eth' : '100 usdc'} to 0x...`);
-          } else {
-            // Get wallet info first
-            const walletInfo = await getWalletInfo(phoneNumber);
-            if (!walletInfo || !walletInfo.walletId) {
-              twiml.message("❌ Wallet not found. Create a wallet first by sending 'create wallet'.");
-              res.type("text/xml").send(twiml.toString());
-              return;
-            }
 
-            // Execute the transaction based on token type
-            console.log(`💸 Sending ${amount} ${token} from ${phoneNumber} to ${address}`);
-            console.log(`Found user: ${walletInfo.walletAddress}`);
-            console.log(`Phone: ${phoneNumber}`);
-            console.log(`Amount: ${amount} ${token}`);
-            console.log(`To: ${address}`);
-            console.log(`Wallet ID: ${walletInfo.walletId}`);
-            
-            let result;
-            if (token === 'ETH') {
-              result = await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount);
-            } else {
-              result = await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
-            }
-            
-            const tokenEmoji = token === 'ETH' ? '💎' : '🪙';
-            twiml.message(`✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n📍 *To:* ${address.substring(0, 10)}...${address.substring(36)}\n🔗 *TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n🌐 *Network:* Arbitrum Sepolia`);
-          }
+    // --- Command: SEND TOKENS ---
+    else if (text.startsWith("send ")) {
+      try {
+        const sendData = parseSendCommand(text);
+
+        if (!sendData) {
+          await sendWhatsAppMessage(
+            phoneNumber,
+            `❌ *Invalid send format*\n\n✅ *Examples:*\n• send 0.1 eth to 0xabc123...\n• send 50 usdc to 0xabc123...`
+          );
+          return res.sendStatus(200);
         }
-      } catch (error) {
-        console.error("Send error:", error);
-        
-        if (error instanceof Error) {
-          if (error.message.includes("Insufficient balance")) {
-            twiml.message(`❌ *Insufficient Balance*\n\n${error.message}\n\n💡 For test tokens:\n• ETH: https://faucet.arbitrum.io/\n• USDC: Send "receive test token"`);
-          } else if (error.message.includes("Invalid recipient")) {
-            twiml.message(`❌ *Invalid Address*\n\nPlease check the recipient address and try again.\n\n✅ *Format:* 0x followed by 40 characters`);
-          } else if (error.message.includes("transfer amount exceeds balance")) {
-            twiml.message(`❌ *Insufficient USDC Balance*\n\nYou don't have enough USDC for this transaction.\n\n💡 Get test USDC: Send "receive test token"`);
-          } else {
-            twiml.message(`❌ *Transaction Failed*\n\n${error.message}\n\nPlease try again or contact support.`);
-          }
+
+        const { amount, address, token } = sendData;
+        const isValidAmount = token === "ETH" ? validateAmount(amount) : validateUSDCAmount(amount);
+
+        if (!isValidAmount) {
+          const maxAmount = token === "ETH" ? "10 ETH" : "1000 USDC";
+          await sendWhatsAppMessage(
+            phoneNumber,
+            `❌ *Invalid amount: ${amount} ${token}*\n\n✅ *Valid range:* 0.001 - ${maxAmount}`
+          );
+          return res.sendStatus(200);
+        }
+
+        const walletInfo = await getWalletInfo(phoneNumber);
+        if (!walletInfo || !walletInfo.walletId) {
+          await sendWhatsAppMessage(phoneNumber, "❌ Wallet not found. Create one with 'create wallet'.");
+          return res.sendStatus(200);
+        }
+
+        console.log(`💸 Sending ${amount} ${token} from ${walletInfo.walletAddress} to ${address}`);
+
+        const result =
+          token === "ETH"
+            ? await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount)
+            : await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
+
+        const tokenEmoji = token === "ETH" ? "💎" : "🪙";
+        await sendWhatsAppMessage(
+          phoneNumber,
+          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n📍 *To:* ${address.substring(0, 10)}...${address.substring(36)}\n🔗 *TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n🌐 *Network:* Arbitrum Sepolia`
+        );
+      } catch (error: any) {
+        console.error("Send error:", error.message);
+
+        if (error.message?.includes("Insufficient balance")) {
+          await sendWhatsAppMessage(phoneNumber, "❌ *Insufficient Balance*\n\nUse 'receive test token' to get USDC.");
+        } else if (error.message?.includes("Invalid recipient")) {
+          await sendWhatsAppMessage(phoneNumber, "❌ *Invalid Address*\n\nFormat: 0x followed by 40 characters.");
         } else {
-          twiml.message("❌ Transaction failed. Please try again later.");
+          await sendWhatsAppMessage(phoneNumber, `❌ *Transaction Failed*\n\n${error.message || "Try again later."}`);
         }
       }
     }
-    
-    else if (message === "help" || message === "menu") {
-      twiml.message(`🤖 *Crypto Wallet Bot - Commands*\n\n🏦 *create wallet* - Create new wallet\n💰 *balance* - Check wallet balance\n💎 *send [amount] eth to [address]* - Send ETH\n🪙 *send [amount] usdc to [address]* - Send USDC\n🚰 *receive test token* - Get test USDC\n📈 *history* - Recent transactions\n❓ *help* - Show this menu\n\n💡 *Examples:*\n• send 0.5 eth to 0xabcd1234...\n• send 100 usdc to 0x9876543210...\n\n⛽ *Gas fees sponsored*\n🌐 *Network: Arbitrum Sepolia*`);
+
+    // --- Command: HELP / MENU ---
+    else if (["help", "menu"].includes(text)) {
+      await sendWhatsAppMessage(
+        phoneNumber,
+        `🤖 *Crypto Wallet Bot Commands*\n\n🏦 create wallet\n💰 balance\n💎 send [amount] eth to [address]\n🪙 send [amount] usdc to [address]\n🚰 receive test token\n📈 history\n❓ help\n\n⛽ Gas fees sponsored\n🌐 Network: Arbitrum Sepolia`
+      );
     }
-    
+
+    // --- UNKNOWN COMMAND ---
     else {
-      // Handle unknown commands with suggestions
-      if (message.includes("send") || message.includes("transfer")) {
-        twiml.message(`❓ *Send Command Help*\n\n✅ *Correct formats:*\n• send [amount] eth to [address]\n• send [amount] usdc to [address]\n\n📝 *Examples:*\n• send 0.5 eth to 0xabcd1234...\n• send 100 usdc to 0x9876543210...\n\n💡 Type 'help' for all commands`);
-      } else if (message.includes("faucet") || message.includes("test") || message.includes("token")) {
-        twiml.message(`🚰 *Test Token Faucet*\n\n✅ *Get test USDC:*\nSend "receive test token"\n\n💡 *Get test ETH:*\nVisit: https://faucet.arbitrum.io/\n\nType 'help' for all commands`);
-      } else {
-        twiml.message(`🤖 *Unknown Command*\n\nI didn't understand: "${req.body.Body}"\n\n💡 *Available Commands:*\n• create wallet\n• balance  \n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n• help\n\nType any command to get started!`);
-      }
+      await sendWhatsAppMessage(
+        phoneNumber,
+        `🤖 *Unknown Command*\n\nI didn’t understand: "${text}"\n\n💡 Type 'help' for a list of commands.`
+      );
     }
-    
+
+    res.sendStatus(200);
   } catch (err: any) {
     console.error("❌ Webhook error:", err.message || err);
-    twiml.message("❌ Something went wrong. Please try again later.");
+    res.sendStatus(500);
   }
+});
 
-  res.type("text/xml").send(twiml.toString());
+// GET route for webhook verification (required by WhatsApp Cloud API)
+router.get("/whatsapp-webhook", (req: Request, res: Response) => {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === verifyToken) {
+    console.log("✅ Webhook verified successfully");
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
 });
 
 export default router;
