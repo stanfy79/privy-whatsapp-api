@@ -38,7 +38,7 @@ async function sendWhatsAppMessage(to: string, text: string) {
       }
     );
   } catch (error) {
-    console.error("❌ Failed to send WhatsApp message:", error);
+    console.error("⚠️ Failed to send WhatsApp message:", error);
   }
 }
 
@@ -69,17 +69,17 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         if (result.alreadyExists) {
           await sendWhatsAppMessage(
             phoneNumber,
-            `ℹ️ *You Already Have a Wallet!*\n\n💼 *Your Address:*\n${result.walletAddress}\n\n💡 *Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 One wallet per phone number`
+            `ℹ️ *You Already Have a Wallet!*\n\n *Your Address:*\n${result.walletAddress}\n\n*Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 One wallet per phone number`
           );
         } else {
           await sendWhatsAppMessage(
             phoneNumber,
-            `✅ *Wallet Created Successfully!*\n\n💼 *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`
+            `✅ *Wallet Created Successfully!*\n\n *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`
           );
         }
       } catch (error) {
         console.error("Wallet creation error:", error);
-        await sendWhatsAppMessage(phoneNumber, "❌ Failed to create wallet. Try again later.");
+        await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to create wallet. Try again later.");
       }
     }
 
@@ -89,11 +89,11 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `💰 *Your Wallet Balance*\n\n💎 ${balance.eth} ETH\n🪙 ${balance.usdc} USDC\n\n📍 *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`
+          `💰 *Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n *Gas:* Sponsored`
         );
       } catch (error) {
         console.error("Balance error:", error);
-        await sendWhatsAppMessage(phoneNumber, "❌ Failed to check balance. Create a wallet first with 'create wallet'.");
+        await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to check balance. Create a wallet first with 'create wallet'.");
       }
     }
 
@@ -101,10 +101,10 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (text === "history") {
       try {
         const history = await getTransactionHistory(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n💡 Check full history on Arbiscan`);
+        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan`);
       } catch (error) {
         console.error("History error:", error);
-        await sendWhatsAppMessage(phoneNumber, "❌ Failed to fetch history.");
+        await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to fetch history.");
       }
     }
 
@@ -112,10 +112,10 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["receive test token", "faucet", "request test tokens"].includes(text)) {
       try {
         const faucetResult = await sendTestTokens(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, `🚰 *Test Token Faucet*\n\n${faucetResult}\n\n💡 Use 'balance' to check tokens`);
+        await sendWhatsAppMessage(phoneNumber, ` *Test Token Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
       } catch (error) {
         console.error("Faucet error:", error);
-        await sendWhatsAppMessage(phoneNumber, "❌ Failed to send test tokens. Make sure you have a wallet first.");
+        await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
       }
     }
 
@@ -127,7 +127,8 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         if (!sendData) {
           await sendWhatsAppMessage(
             phoneNumber,
-            `❌ *Invalid send format*\n\n✅ *Examples:*\n• send 0.1 eth to 0xabc123...\n• send 50 usdc to 0xabc123...`
+            `⚠️*Invalid send format* \n\n *Examples:*\n• send 0.1 eth to 0xabc123... ✅\n• send 50 usdc to 0xabc123... ✅`
+            `⚠️*Invalid send format* \n\n *Examples:*\n• send 0.1 eth to 0xabc123... ✅\n• send 50 usdc to 0xabc123... ✅`
           );
           return res.sendStatus(200);
         }
@@ -139,18 +140,18 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
           const maxAmount = token === "ETH" ? "10 ETH" : "1000 USDC";
           await sendWhatsAppMessage(
             phoneNumber,
-            `❌ *Invalid amount: ${amount} ${token}*\n\n✅ *Valid range:* 0.001 - ${maxAmount}`
+            ` *Invalid amount: ${amount} ${token}*\n\n✅ *Valid range:* 0.001 - ${maxAmount}`
           );
           return res.sendStatus(200);
         }
 
         const walletInfo = await getWalletInfo(phoneNumber);
         if (!walletInfo || !walletInfo.walletId) {
-          await sendWhatsAppMessage(phoneNumber, "❌ Wallet not found. Create one with 'create wallet'.");
+          await sendWhatsAppMessage(phoneNumber, "⚠️ Wallet not found. Create one with 'create wallet'.");
           return res.sendStatus(200);
         }
 
-        console.log(`💸 Sending ${amount} ${token} from ${walletInfo.walletAddress} to ${address}`);
+        console.log(`Sending ${amount} ${token} from ${walletInfo.walletAddress} to ${address}`);
 
         const result =
           token === "ETH"
@@ -160,17 +161,17 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const tokenEmoji = token === "ETH" ? "💎" : "🪙";
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n📍 *To:* ${address.substring(0, 10)}...${address.substring(36)}\n🔗 *TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n🌐 *Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n *To:* ${address.substring(0, 10)}...${address.substring(36)}\n🔗 *TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n *Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
 
         if (error.message?.includes("Insufficient balance")) {
-          await sendWhatsAppMessage(phoneNumber, "❌ *Insufficient Balance*\n\nUse 'receive test token' to get USDC.");
+          await sendWhatsAppMessage(phoneNumber, "⚠️ *Insufficient Balance*\n\nUse 'receive test token' to get USDC.");
         } else if (error.message?.includes("Invalid recipient")) {
-          await sendWhatsAppMessage(phoneNumber, "❌ *Invalid Address*\n\nFormat: 0x followed by 40 characters.");
+          await sendWhatsAppMessage(phoneNumber, "⚠️ *Invalid Address*\n\nFormat: 0x followed by 40 characters.");
         } else {
-          await sendWhatsAppMessage(phoneNumber, `❌ *Transaction Failed*\n\n${error.message || "Try again later."}`);
+          await sendWhatsAppMessage(phoneNumber, `⚠️ *Transaction Failed*\n\n${error.message || "Try again later."}`);
         }
       }
     }
@@ -179,7 +180,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `🤖 *Crypto Wallet Bot Commands*\n\n🏦 create wallet\n💰 balance\n💎 send [amount] eth to [address]\n🪙 send [amount] usdc to [address]\n🚰 receive test token\n📈 history\n❓ help\n\n⛽ Gas fees sponsored\n🌐 Network: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\ncreate wallet\nbalance\n send [amount] eth to [address]\nsend [amount] usdc to [address]\nreceive test token\n📈 history\n❓ help\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
       );
     }
 
@@ -187,13 +188,13 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else {
       await sendWhatsAppMessage(
         phoneNumber,
-        `🤖 *Unknown Command*\n\nI didn’t understand: "${text}"\n\n💡 Type 'help' for a list of commands.`
+        `⚠️*Unknown Command*\n\nI didn’t understand: "${text}"\n\nType 'help' for a list of commands.`
       );
     }
 
     res.sendStatus(200);
   } catch (err: any) {
-    console.error("❌ Webhook error:", err.message || err);
+    console.error("⚠️ Webhook error:", err.message || err);
     res.sendStatus(500);
   }
 });
