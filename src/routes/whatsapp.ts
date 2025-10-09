@@ -89,7 +89,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n *Gas:* Sponsored`
+          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`
         );
       } catch (error) {
         console.error("Balance error:", error);
@@ -161,7 +161,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const tokenEmoji = token === "ETH" ? "💎" : "🪙";
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n *To:* ${address.substring(0, 10)}...${address.substring(36)}\n🔗 *TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n *Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n *To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n *Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
