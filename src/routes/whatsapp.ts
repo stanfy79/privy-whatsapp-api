@@ -74,7 +74,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         } else {
           await sendWhatsAppMessage(
             phoneNumber,
-            `✅ *Wallet Created Successfully!*\n\n *Address:*\n${result.walletAddress}\n\n🎉 Your crypto wallet is ready!\n\n💡 *Commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history`
+            `✅ *Wallet Created Successfully!*\n\n *Address:*\n${result.walletAddress}`
           );
         }
       } catch (error) {
@@ -89,7 +89,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `💰 *Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n *Gas:* Sponsored`
+          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n *Gas:* Sponsored`
         );
       } catch (error) {
         console.error("Balance error:", error);
@@ -109,7 +109,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     }
 
     // --- Command: RECEIVE TEST TOKEN ---
-    else if (["receive test token", "faucet", "request test tokens"].includes(text)) {
+    else if (["Request test usdc", "faucet", "request test token"].includes(text)) {
       try {
         const faucetResult = await sendTestTokens(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, ` *Test Token Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
@@ -180,7 +180,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\ncreate wallet\nbalance\n send [amount] eth to [address]\nsend [amount] usdc to [address]\nreceive test token\n📈 history\n❓ help\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nHistory\nhelp\n\nGas fees sponsored\nNetwork: Arbitrum Sepolia`
       );
     }
 

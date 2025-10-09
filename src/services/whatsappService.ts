@@ -20,6 +20,6 @@ export async function handleIncomingMessage(messageData: MessageData): Promise<v
 
   if (text.includes("check balance")) {
     const balance = await getWalletBalance(phoneNumber);
-    await sendWhatsAppMessage(phoneNumber, `💰 Your wallet balance: ${balance}`);
+    await sendWhatsAppMessage(phoneNumber, `Your wallet balance: ${balance}`);
   }
 }

@@ -597,7 +597,7 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
   if (!user) throw new Error("User not found. Create a wallet first.");
 
   const ETH_FAUCET_AMOUNT = "0.01";
-  const USDC_FAUCET_AMOUNT = "10";
+  const USDC_FAUCET_AMOUNT = "3";
 
   // Method 1: Self-funded wallet (Primary)
   if (process.env.FAUCET_PRIVATE_KEY) {
@@ -623,7 +623,7 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         });
         await ethTx.wait();
         ethTxHash = ethTx.hash;
-        successMessage += `💎 Sent ${ETH_FAUCET_AMOUNT} ETH\n`;
+        successMessage += `Sent ${ETH_FAUCET_AMOUNT} ETH\n`;
       } else {
         successMessage += `⚠️ ETH faucet empty\n`;
       }
@@ -633,16 +633,16 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         const usdcTx = await usdcContract.transfer(user.walletAddress, requiredUsdc);
         await usdcTx.wait();
         usdcTxHash = usdcTx.hash;
-        successMessage += `🪙 Sent ${USDC_FAUCET_AMOUNT} USDC\n`;
+        successMessage += `*Sent ${USDC_FAUCET_AMOUNT} USDC*\n`;
       } else {
         successMessage += `⚠️ USDC faucet empty\n`;
       }
 
       if (ethTxHash || usdcTxHash) {
-        successMessage += `\n📍 *To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
+        successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
         if (ethTxHash) successMessage += `🔗 ETH: ${ethTxHash.substring(0, 10)}...\n`;
         if (usdcTxHash) successMessage += `🔗 USDC: ${usdcTxHash.substring(0, 10)}...\n`;
-        successMessage += `\n💡 Check balance with 'balance'`;
+        successMessage += `\nCheck balance with 'balance'`;
         return successMessage;
       }
     } catch (error) {
@@ -669,14 +669,14 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         eurc: false,
       });
 
-      return `✅ *Faucet Request Sent!*\n\n💎 Test ETH requested\n🪙 Test USDC requested\n\n📍 ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\n⏳ Processing: 1-2 minutes\n💡 Check with 'balance'`;
+      return `✅ *Faucet Request Sent!*\n\nTest ETH requested\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\n💡 Check with 'balance'`;
     } catch (error) {
       console.error("Circle SDK error:", error);
     }
   }
 
   // Method 3: Manual instructions
-  return `🚰 *Test Token Faucet*\n\nGet tokens manually:\n\n💎 *ETH:* https://faucet.arbitrum.io/\n🪙 *USDC:* Bridge from Sepolia\n\n📍 *Your Address:*\n${user.walletAddress}\n\n💡 Check with 'balance' after`;
+  return `ℹ️ Unable to process faucet request at this time!`;
 }
 
 // Parse send command for both ETH and USDC
