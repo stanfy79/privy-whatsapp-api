@@ -69,7 +69,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         if (result.alreadyExists) {
           await sendWhatsAppMessage(
             phoneNumber,
-            `ℹ️ *You Already Have a Wallet!*\n\n *Your Address:*\n${result.walletAddress}\n\n*Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• history\n\n🔒 One wallet per phone number`
+            `ℹ️ *You Already Have a Wallet!*\n\n *Your Address:*\n${result.walletAddress}\n\n*Available commands:*\n• balance\n• send 0.5 eth to 0x...\n• send 100 usdc to 0x...\n• receive test token\n• wallet address\n• history\n\n🔒 One wallet per phone number`
           );
         } else {
           await sendWhatsAppMessage(
@@ -189,7 +189,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nWallet address\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
       );
     }
 
