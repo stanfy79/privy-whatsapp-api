@@ -84,7 +84,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     }
 
     // --- Command: BALANCE ---
-    else if (text === "balance") {
+    else if (text.includes("check balance") || text.includes("balance")) {
       try {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
@@ -109,7 +109,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     }
 
     // --- Command: RECEIVE TEST TOKEN ---
-    else if (["Request test usdc", "faucet", "request test token"].includes(text)) {
+    else if (text.includes("request test usdc") || text.includes("faucet") || text.includes("get test token" )) {
       try {
         const faucetResult = await sendTestTokens(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, ` *Test Token Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
@@ -118,6 +118,15 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
       }
     }
+
+    if (text === "address" || text === "my wallet") {
+    const walletAddress = await getWalletInfo(phoneNumber);
+    if (walletAddress) {
+      await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
+    } else {
+      await sendWhatsAppMessage(phoneNumber, `ℹ️ No wallet found for your number. Try "create wallet" first!`);
+    }
+  }
 
     // --- Command: SEND TOKENS ---
     else if (text.startsWith("send ")) {
@@ -180,7 +189,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nHistory\nHelp\n\nGas fees sponsored\nNetwork: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
       );
     }
 

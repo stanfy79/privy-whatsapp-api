@@ -23,12 +23,4 @@ export async function handleIncomingMessage(messageData: MessageData): Promise<v
     await sendWhatsAppMessage(phoneNumber, `Your wallet balance: ${balance}`);
   }
 
-  if (text === "address" || text === "my wallet") {
-    const walletAddress = await getUserWalletAddress(phoneNumber);
-    if (walletAddress) {
-      await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
-    } else {
-      await sendWhatsAppMessage(phoneNumber, `ℹ️ No wallet found for your number. Try "create wallet" first!`);
-    }
-  }
 }

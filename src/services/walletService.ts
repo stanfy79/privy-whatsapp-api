@@ -401,7 +401,6 @@ export async function sendETH(
       console.log("Attempting gas-sponsored transaction with Smart Account...");
 
       const hash = await smartAccountClient.sendTransaction({
-        account: kernelSmartAccount,
         to: toAddress as `0x${string}`,
         value: parseEther(amount),
       });
@@ -784,7 +783,7 @@ export async function getTransactionHistory(
   }
 }
 
-export async function getUserWalletAddress(phoneNumber: string): Promise<{
+export async function getWalletInfo(phoneNumber: string): Promise<{
   privyId: string;
   walletAddress: string;
   walletId?: string;
