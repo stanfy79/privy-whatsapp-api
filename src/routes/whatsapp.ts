@@ -119,7 +119,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       }
     }
 
-    if (text === "address" || text === "my wallet") {
+    if (text === "address" || text === "wallet address") {
     const walletAddress = await getWalletInfo(phoneNumber);
     if (walletAddress) {
       await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
@@ -167,10 +167,9 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
             ? await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount)
             : await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
 
-        const tokenEmoji = token === "ETH" ? "💎" : "🪙";
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n${tokenEmoji} *Amount:* ${amount} ${token}\n *To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* ${result.txHash.substring(0, 10)}...${result.txHash.substring(56)}\n\n⛽ *Gas:* Sponsored\n *Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* [${result.txHash.substring(0, 30)}...](https://sepolia.arbiscan.io/tx/${result.txHash})\n\n⛽ *Gas:* Sponsored\n*Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
