@@ -596,7 +596,7 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
   const user = await getUser(phoneNumber);
   if (!user) throw new Error("User not found. Create a wallet first.");
 
-  const ETH_FAUCET_AMOUNT = "0.01";
+  const ETH_FAUCET_AMOUNT = "0.0005";
   const USDC_FAUCET_AMOUNT = "3";
 
   // Method 1: Self-funded wallet (Primary)
@@ -669,7 +669,7 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         eurc: false,
       });
 
-      return `✅ *Faucet Request Sent!*\n\nTest ETH requested\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\n💡 Check with 'balance'`;
+      return `✅ *Faucet Request Sent!*\n\nTest ETH requested\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
     } catch (error) {
       console.error("Circle SDK error:", error);
     }
