@@ -1,4 +1,4 @@
-import { createWalletForUser, getWalletBalance, getWalletInfo } from "./walletService";
+import { createWalletForUser, getWalletBalance, getUserWalletAddress } from "./walletService";
 import { saveUser } from "./userService";
 import { sendWhatsAppMessage } from "../config/whatsapp";
 
@@ -18,13 +18,17 @@ export async function handleIncomingMessage(messageData: MessageData): Promise<v
     await sendWhatsAppMessage(phoneNumber, `✅ Wallet created!\nAddress: ${walletAddress}`);
   }
 
-  if (text.includes("check balance" || "balance")) {
+  if (text.includes("check balance") || text.includes("balance")) {
     const balance = await getWalletBalance(phoneNumber);
     await sendWhatsAppMessage(phoneNumber, `Your wallet balance: ${balance}`);
-  };
+  }
 
-  if (text.includes("address" || "my wallet")) {
-    const address = await getWalletInfo(walletAddress);
-    await sendWhatsAppMessage(phoneNumber, `${address}`);
+  if (text === "address" || text === "my wallet") {
+    const walletAddress = await getUserWalletAddress(phoneNumber);
+    if (walletAddress) {
+      await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
+    } else {
+      await sendWhatsAppMessage(phoneNumber, `ℹ️ No wallet found for your number. Try "create wallet" first!`);
+    }
   }
 }

@@ -75,6 +75,23 @@ export async function getWalletBalance(phoneNumber){
   return `${balanceEth.toFixed(4)} ETH`;
 }
 
+export async function getUserWalletAddress(phoneNumber) {
+  try {
+    const user = await getUser(phoneNumber);
+    if (!user) return null;
+
+    return {
+      privyId: user.privyId,
+      walletAddress: user.walletAddress,
+      walletId: user.walletId,
+    };
+  } catch (error) {
+    console.error("Error getting wallet info:", error);
+    return null;
+  }
+}
+
+
 // export async function sendETH(
 //   fromPhoneNumber: string,
 //   toAddress: string,
