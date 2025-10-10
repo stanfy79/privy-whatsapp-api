@@ -101,7 +101,8 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (text === "history") {
       try {
         const history = await getTransactionHistory(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan`);
+        const walletInfo = await getWalletInfo(phoneNumber);
+        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👉 https://sepolia.arbiscan.io/${walletInfo?.walletAddress}`);
       } catch (error) {
         console.error("History error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to fetch history.");
