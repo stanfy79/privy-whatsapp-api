@@ -169,7 +169,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* [${result.txHash.substring(0, 30)}...](https://sepolia.arbiscan.io/tx/${result.txHash})\n\n⛽ *Gas:* Sponsored\n*Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* (https://sepolia.arbiscan.io/tx/${result.txHash})\n\n⛽ *Gas:* Sponsored\n*Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
