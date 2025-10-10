@@ -119,7 +119,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       }
     }
 
-    if (text === "address" || text === "wallet address") {
+    else if (text === "address" || text === "wallet address") {
     const walletAddress = await getWalletInfo(phoneNumber);
     if (walletAddress) {
       await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
