@@ -199,7 +199,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test USDC\nWallet address\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nRequest test ETH\nRequest test USDC\nWallet address\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
       );
     }
 
