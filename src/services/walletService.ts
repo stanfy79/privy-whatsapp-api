@@ -537,6 +537,7 @@ export async function sendUSDC(
       });
 
       const hash = await smartAccountClient.sendTransaction({
+        account: kernelSmartAccount,
         to: USDC_CONTRACT_ADDRESS as `0x${string}`,
         data: callData,
         value: 0n, // No ETH value for ERC20 transfer
@@ -592,28 +593,67 @@ export async function sendUSDC(
 /**
  * Unified Faucet - Sends both ETH and USDC test tokens
  */
-export async function sendTestTokens(phoneNumber: string): Promise<string> {
+// Simple in-memory request tracker (replace with Redis/DB for production)
+const faucetRequestLimits = {
+  eth: {
+    maxPerDay: 0.0005,
+  },
+  usdc: {
+    maxPerDay: 12,
+  },
+};
+const faucetUsage: Record<string, { eth: { date: string; total: number }; usdc: { date: string; total: number } }> = {};
+
+function canRequestFaucet(phoneNumber: string, token: "eth" | "usdc", amount: number): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!faucetUsage[phoneNumber]) {
+    faucetUsage[phoneNumber] = {
+      eth: { date: today, total: 0 },
+      usdc: { date: today, total: 0 },
+    };
+  }
+  if (faucetUsage[phoneNumber][token].date !== today) {
+    faucetUsage[phoneNumber][token] = { date: today, total: 0 };
+  }
+  return faucetUsage[phoneNumber][token].total + amount <= faucetRequestLimits[token].maxPerDay;
+}
+
+function recordFaucetUsage(phoneNumber: string, token: "eth" | "usdc", amount: number) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!faucetUsage[phoneNumber]) {
+    faucetUsage[phoneNumber] = {
+      eth: { date: today, total: 0 },
+      usdc: { date: today, total: 0 },
+    };
+  }
+  if (faucetUsage[phoneNumber][token].date !== today) {
+    faucetUsage[phoneNumber][token] = { date: today, total: 0 };
+  }
+  faucetUsage[phoneNumber][token].total += amount;
+}
+
+export async function sendEthFaucet(phoneNumber: string): Promise<string> {
   const user = await getUser(phoneNumber);
   if (!user) throw new Error("User not found. Create a wallet first.");
 
-  const ETH_FAUCET_AMOUNT = "0.0005";
-  const USDC_FAUCET_AMOUNT = "3";
+  const ETH_FAUCET_AMOUNT = "0.0001";
+  const ethAmountNum = parseFloat(ETH_FAUCET_AMOUNT);
+
+  // Limit check
+  if (!canRequestFaucet(phoneNumber, "eth", ethAmountNum)) {
+    return `ℹ️ Daily ETH faucet limit reached *(${faucetRequestLimits.eth.maxPerDay} ETH per day).* Try again tomorrow.`;
+  }
+
+  let ethTxHash = "";
 
   // Method 1: Self-funded wallet (Primary)
   if (process.env.FAUCET_PRIVATE_KEY) {
     try {
       const faucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
-      const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, faucetWallet);
-
       const faucetEthBalance = await provider.getBalance(faucetWallet.address);
-      const faucetUsdcBalance = await usdcContract.balanceOf(faucetWallet.address);
-
       const requiredEth = ethers.parseEther(ETH_FAUCET_AMOUNT);
-      const requiredUsdc = ethers.parseUnits(USDC_FAUCET_AMOUNT, USDC_DECIMALS);
 
-      let ethTxHash = "";
-      let usdcTxHash = "";
-      let successMessage = "✅ *Faucet Success!*\n\n";
+      let successMessage = "✅ *ETH Faucet Success!*\n\n";
 
       // Send ETH if available
       if (faucetEthBalance >= requiredEth) {
@@ -623,10 +663,76 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         });
         await ethTx.wait();
         ethTxHash = ethTx.hash;
-        successMessage += `Sent ${ETH_FAUCET_AMOUNT} ETH\n`;
+        successMessage += `*Sent ${ETH_FAUCET_AMOUNT} ETH*\n`;
+        recordFaucetUsage(phoneNumber, "eth", ethAmountNum);
       } else {
         successMessage += `⚠️ ETH faucet empty\n`;
       }
+
+      if (ethTxHash) {
+        successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
+        successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${ethTxHash}\n`;
+        successMessage += `\nCheck balance with 'balance'`;
+        return successMessage;
+      }
+    } catch (error) {
+      console.error("Self-funded ETH faucet error:", error);
+    }
+  }
+
+  // Method 2: Circle SDK (Fallback)
+  // if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
+  //   try {
+  //     const client = initiateDeveloperControlledWalletsClient({
+  //       apiKey: CIRCLE_API_KEY,
+  //       entitySecret: CIRCLE_ENTITY_SECRET,
+  //     });
+
+  //     const walletResponse = await client.getWallet({ id: user.walletId });
+  //     if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
+
+  //     await client.requestTestnetTokens({
+  //       address: walletResponse.data.wallet.address,
+  //       blockchain: TestnetBlockchain.ArbSepolia,
+  //       usdc: false,
+  //       native: true,
+  //       eurc: false,
+  //     });
+
+  //     recordFaucetUsage(phoneNumber, "eth", ethAmountNum);
+  //     return `✅ *ETH Faucet Request Sent!*\n\nTest ETH requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
+  //   } catch (error) {
+  //     console.error("Circle SDK ETH error:", error);
+  //   }
+  // }
+
+  // Method 3: Manual instructions
+  return `ℹ️ Unable to process ETH faucet request at this time!`;
+}
+
+export async function sendUsdcFaucet(phoneNumber: string): Promise<string> {
+  const user = await getUser(phoneNumber);
+  if (!user) throw new Error("User not found. Create a wallet first.");
+
+  const USDC_FAUCET_AMOUNT = "3";
+  const usdcAmountNum = parseFloat(USDC_FAUCET_AMOUNT);
+
+  // Limit check
+  if (!canRequestFaucet(phoneNumber, "usdc", usdcAmountNum)) {
+    return `ℹ️ Daily USDC faucet limit reached *(${faucetRequestLimits.usdc.maxPerDay} USDC per day).* Try again tomorrow.`;
+  }
+
+  let usdcTxHash = "";
+
+  // Method 1: Self-funded wallet (Primary)
+  if (process.env.FAUCET_PRIVATE_KEY) {
+    try {
+      const faucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
+      const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, faucetWallet);
+      const faucetUsdcBalance = await usdcContract.balanceOf(faucetWallet.address);
+      const requiredUsdc = ethers.parseUnits(USDC_FAUCET_AMOUNT, USDC_DECIMALS);
+
+      let successMessage = "✅ *USDC Faucet Success!*\n\n";
 
       // Send USDC if available
       if (faucetUsdcBalance >= requiredUsdc) {
@@ -634,49 +740,50 @@ export async function sendTestTokens(phoneNumber: string): Promise<string> {
         await usdcTx.wait();
         usdcTxHash = usdcTx.hash;
         successMessage += `*Sent ${USDC_FAUCET_AMOUNT} USDC*\n`;
+        recordFaucetUsage(phoneNumber, "usdc", usdcAmountNum);
       } else {
         successMessage += `⚠️ USDC faucet empty\n`;
       }
 
-      if (ethTxHash || usdcTxHash) {
+      if (usdcTxHash) {
         successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
-        if (ethTxHash) successMessage += `🔗 ETH: ${ethTxHash.substring(0, 10)}...\n`;
-        if (usdcTxHash) successMessage += `🔗 USDC: ${usdcTxHash.substring(0, 10)}...\n`;
+        successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${usdcTxHash}\n`;
         successMessage += `\nCheck balance with 'balance'`;
         return successMessage;
       }
     } catch (error) {
-      console.error("Self-funded faucet error:", error);
+      console.error("Self-funded USDC faucet error:", error);
     }
   }
 
   // Method 2: Circle SDK (Fallback)
-  if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
-    try {
-      const client = initiateDeveloperControlledWalletsClient({
-        apiKey: CIRCLE_API_KEY,
-        entitySecret: CIRCLE_ENTITY_SECRET,
-      });
+  // if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
+  //   try {
+  //     const client = initiateDeveloperControlledWalletsClient({
+  //       apiKey: CIRCLE_API_KEY,
+  //       entitySecret: CIRCLE_ENTITY_SECRET,
+  //     });
 
-      const walletResponse = await client.getWallet({ id: user.walletId });
-      if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
+  //     const walletResponse = await client.getWallet({ id: user.walletId });
+  //     if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
 
-      await client.requestTestnetTokens({
-        address: walletResponse.data.wallet.address,
-        blockchain: TestnetBlockchain.ArbSepolia,
-        usdc: true,
-        native: true,
-        eurc: false,
-      });
+  //     await client.requestTestnetTokens({
+  //       address: walletResponse.data.wallet.address,
+  //       blockchain: TestnetBlockchain.ArbSepolia,
+  //       usdc: true,
+  //       native: false,
+  //       eurc: false,
+  //     });
 
-      return `✅ *Faucet Request Sent!*\n\nTest ETH requested\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
-    } catch (error) {
-      console.error("Circle SDK error:", error);
-    }
-  }
+  //     recordFaucetUsage(phoneNumber, "usdc", usdcAmountNum);
+  //     return `✅ *USDC Faucet Request Sent!*\n\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
+  //   } catch (error) {
+  //     console.error("Circle SDK USDC error:", error);
+  //   }
+  // }
 
   // Method 3: Manual instructions
-  return `ℹ️ Unable to process faucet request at this time!`;
+  return `ℹ️ Unable to process USDC faucet request at this time!`;
 }
 
 // Parse send command for both ETH and USDC

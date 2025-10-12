@@ -6,7 +6,8 @@ import {
   getWalletBalance, 
   sendETH,
   sendUSDC,
-  sendTestTokens,
+  sendUsdcFaucet,
+  sendEthFaucet,
   parseSendCommand, 
   validateAmount,
   validateUSDCAmount,
@@ -110,10 +111,20 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     }
 
     // --- Command: RECEIVE TEST TOKEN ---
-    else if (text.includes("request test usdc") || text.includes("faucet") || text.includes("get test token" )) {
+    else if (text.includes("request test usdc") || text.includes("test usdc") || text.includes("Request test USDC" )) {
       try {
-        const faucetResult = await sendTestTokens(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, ` *Test Token Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
+        const faucetResult = await sendUsdcFaucet(phoneNumber);
+        await sendWhatsAppMessage(phoneNumber, ` *Test UEDC Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
+      } catch (error) {
+        console.error("Faucet error:", error);
+        await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
+      }
+    }
+
+    else if (text.includes("request test eth") || text.includes("test eth") || text.includes("Request test ETH" )) {
+      try {
+        const faucetResult = await sendEthFaucet(phoneNumber);
+        await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
@@ -137,7 +148,6 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         if (!sendData) {
           await sendWhatsAppMessage(
             phoneNumber,
-            `⚠️*Invalid send format* \n\n *Examples:*\n• send 0.1 eth to 0xabc123... ✅\n• send 50 usdc to 0xabc123... ✅`
             `⚠️*Invalid send format* \n\n *Examples:*\n• send 0.1 eth to 0xabc123... ✅\n• send 50 usdc to 0xabc123... ✅`
           );
           return res.sendStatus(200);

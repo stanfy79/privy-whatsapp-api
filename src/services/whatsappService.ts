@@ -1,4 +1,4 @@
-import { createWalletForUser, getWalletBalance, getUserWalletAddress } from "./walletService";
+import { createWalletForUser, getWalletBalance } from "./walletService";
 import { saveUser } from "./userService";
 import { sendWhatsAppMessage } from "../config/whatsapp";
 
