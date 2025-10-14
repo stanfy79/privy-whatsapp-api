@@ -114,7 +114,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (text.includes("request test usdc") || text.includes("test usdc") || text.includes("Request test USDC" )) {
       try {
         const faucetResult = await sendUsdcFaucet(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, ` *Test UEDC Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
+        await sendWhatsAppMessage(phoneNumber, ` *Test UEDC Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
@@ -124,7 +124,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (text.includes("request test eth") || text.includes("test eth") || text.includes("Request test ETH" )) {
       try {
         const faucetResult = await sendEthFaucet(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens`);
+        await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
