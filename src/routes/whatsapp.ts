@@ -190,7 +190,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         } else if (error.message?.includes("Invalid recipient")) {
           await sendWhatsAppMessage(phoneNumber, "⚠️ *Invalid Address*\n\nFormat: 0x followed by 40 characters.");
         } else {
-          await sendWhatsAppMessage(phoneNumber, `⚠️ *Transaction Failed*\n\n${error.message || "Try again later."}`);
+          await sendWhatsAppMessage(phoneNumber, `⚠️ *Transaction Failed*\n\nLow on gas!\n\nFirst send 'Receive test ETH' to sponsore gas fee and try again afterwards.`);
         }
       }
     }
