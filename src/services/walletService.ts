@@ -756,32 +756,6 @@ export async function sendUsdcFaucet(phoneNumber: string): Promise<string> {
     }
   }
 
-  // Method 2: Circle SDK (Fallback)
-  // if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
-  //   try {
-  //     const client = initiateDeveloperControlledWalletsClient({
-  //       apiKey: CIRCLE_API_KEY,
-  //       entitySecret: CIRCLE_ENTITY_SECRET,
-  //     });
-
-  //     const walletResponse = await client.getWallet({ id: user.walletId });
-  //     if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
-
-  //     await client.requestTestnetTokens({
-  //       address: walletResponse.data.wallet.address,
-  //       blockchain: TestnetBlockchain.ArbSepolia,
-  //       usdc: true,
-  //       native: false,
-  //       eurc: false,
-  //     });
-
-  //     recordFaucetUsage(phoneNumber, "usdc", usdcAmountNum);
-  //     return `✅ *USDC Faucet Request Sent!*\n\nTest USDC requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
-  //   } catch (error) {
-  //     console.error("Circle SDK USDC error:", error);
-  //   }
-  // }
-
   // Method 3: Manual instructions
   return `ℹ️ Unable to process USDC faucet request at this time!`;
 }
