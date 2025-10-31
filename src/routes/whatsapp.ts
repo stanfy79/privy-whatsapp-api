@@ -190,7 +190,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         } else if (error.message?.includes("Invalid recipient")) {
           await sendWhatsAppMessage(phoneNumber, "⚠️ *Invalid Address*\n\nFormat: 0x followed by 40 characters.");
         } else {
-          await sendWhatsAppMessage(phoneNumber, `⚠️ *Transaction Failed*\n\nNo enough balance!\n\nFirst send "Receive test ETH" to receive some test tokens and try again afterwards.`);
+          await sendWhatsAppMessage(phoneNumber, `⚠️ *Transaction Failed*\n\nInsufficient balance!\n\nFirst top-up USDC or ETH balance. You can send "Receive test ETH" or "Receive test USDC" to receive some test tokens and try again afterwards.`);
         }
       }
     }
