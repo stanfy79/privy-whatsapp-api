@@ -815,54 +815,72 @@ export function validateUSDCAmount(amount: string): boolean {
   }
 }
 
-// Get transaction history using Alchemy
+// Updated getTransactionHistory function for walletService.ts
 export async function getTransactionHistory(
-  phoneNumber: string
+  phoneNumber: string
 ): Promise<string> {
-  try {
-    const user: User | null = await getUser(phoneNumber);
-    if (!user) throw new Error("User not found");
+  try {
+    const user: User | null = await getUser(phoneNumber);
+    if (!user) throw new Error("User not found");
 
-    console.log(`Getting transaction history for: ${user.walletAddress}`);
+    const address = user.walletAddress.toLowerCase();
+    console.log(`Getting transaction history for: ${address}`);
 
-    const response = await axios.post(ALCHEMY_RPC_URL, {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "alchemy_getAssetTransfers",
-      params: [
-        {
-          fromAddress: user.walletAddress,
-          category: ["external", "internal", "erc20"],
-          maxCount: "0x5", // Last 5 transactions
-        },
-      ],
-    });
+    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+    const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
+    const ARBITRUM_CHAIN_ID = '42161'; // Arbitrum One
 
-    if (response.data.result?.transfers?.length > 0) {
-      const transfers = response.data.result.transfers;
-      let historyText = `Found ${transfers.length} recent transaction(s):\n\n`;
+    const params = new URLSearchParams({
+      chainid: ARBITRUM_CHAIN_ID,
+      module: 'account',
+      action: 'txlist',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '5', // Last 5 transactions
+      sort: 'desc', // Newest first
+      apikey: ETHERSCAN_API_KEY,
+    });
 
-      transfers.slice(0, 3).forEach((transfer: any, index: number) => {
-        const amount = transfer.value
-          ? `${parseFloat(transfer.value).toFixed(4)} ${
-              transfer.asset || "ETH"
-            }`
-          : "N/A";
-        const to = transfer.to
-          ? `${transfer.to.substring(0, 8)}...${transfer.to.substring(36)}`
-          : "Unknown";
-        historyText += `${index + 1}. Sent ${amount} to ${to}\n`;
-      });
+    const url = `${ETHERSCAN_BASE_URL}?${params}`;
+    const response = await axios.get(url);
 
-      return historyText;
-    }
+    if (response.data.status === '1' && response.data.result?.length > 0) {
+      const transfers = response.data.result;
+      let historyText = `Found ${transfers.length} recent transaction(s):\n\n`;
 
-    return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
-  } catch (error) {
-    console.error("Error getting transaction history:", error);
-    return "Unable to fetch transaction history at the moment.";
-  }
+      transfers.slice(0, 3).forEach((transfer: any, index: number) => {
+        const amount = transfer.value
+          ? `${parseFloat(transfer.value) / 1e18} ETH`
+          : '0 ETH';
+        const to = transfer.to
+          ? `${transfer.to.substring(0, 8)}...${transfer.to.substring(36)}`
+          : 'Unknown';
+        const from = transfer.from
+          ? `${transfer.from.substring(0, 8)}...${transfer.from.substring(36)}`
+          : 'Unknown';
+        const isOutgoing = transfer.from.toLowerCase() === address;
+        const timestamp = new Date(parseInt(transfer.timeStamp, 10) * 1000).toLocaleString();
+        const status = transfer.txreceipt_status === '1' ? '✅' : '❌';
+
+        if (isOutgoing) {
+          historyText += `${index + 1}. Sent ${amount} to ${to} | ${timestamp} ${status}\n`;
+        } else {
+          historyText += `${index + 1}. Received ${amount} from ${from} | ${timestamp} ${status}\n`;
+        }
+      });
+
+      return historyText;
+    }
+
+    return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
+  } catch (error) {
+    console.error("Error getting transaction history:", error);
+    return "Unable to fetch transaction history at the moment.";
+  }
 }
+
 
 export async function getWalletInfo(phoneNumber: string): Promise<{
   privyId: string;
