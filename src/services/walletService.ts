@@ -826,7 +826,7 @@ export async function getTransactionHistory(
     const address = user.walletAddress.toLowerCase();
     console.log(`Getting transaction history for: ${address}`);
 
-    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || 'YourApiKeyToken';
+    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
     const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
     const USDC_CONTRACT_ADDRESS = '0xaf88d065e77c8cC2239327C5EDB3A432268e5831'; // USDC on Arbitrum
@@ -930,9 +930,13 @@ export async function getTransactionHistory(
         // USDC has 6 decimals
         amount = `${parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)} USDC`;
       }
-    });
-  };
-}
+    })
+        return historyText;
+  } catch (error) {
+    console.error("Error getting transaction history:", error);
+    return "Unable to fetch transaction history at the moment.";
+  }
+};
 
 
 export async function getWalletInfo(phoneNumber: string): Promise<{
