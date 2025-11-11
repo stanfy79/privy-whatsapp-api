@@ -925,11 +925,12 @@ export async function getTransactionHistory(
 
       let amount: string;
       if (tx.type === 'ETH') {
-        amount = `${parseFloat(tx.value) / 1e18} ETH`;
+        amount = `${parseFloat(tx.value) / 1e18.toFixed(6)} ETH`;
       } else {
         // USDC has 6 decimals
         amount = `${parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)} USDC`;
       }
+       historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
     })
         return historyText;
   } catch (error) {
