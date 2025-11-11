@@ -829,7 +829,7 @@ export async function getTransactionHistory(
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
     const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
-    const USDC_CONTRACT_ADDRESS = '0xaf88d065e77c8cC2239327C5EDB3A432268e5831'; // USDC on Arbitrum
+    const USDC_CONTRACT_ADDRESS = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d'; // USDC on Arbitrum
 
     // Fetch ETH transactions
     const ethParams = new URLSearchParams({
