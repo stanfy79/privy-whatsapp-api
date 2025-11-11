@@ -838,7 +838,7 @@ export async function getTransactionHistory(
       startblock: '0',
       endblock: '99999999',
       page: '1',
-      offset: '9', // Last 10 transactions
+      offset: '10', // Last 10 transactions
       sort: 'desc', // Newest first
       apikey: ETHERSCAN_API_KEY,
     });
@@ -850,7 +850,7 @@ export async function getTransactionHistory(
       const transfers = response.data.result;
       let historyText = `Found ${transfers.length} recent transaction(s):\n\n`;
 
-      transfers.slice(0, 3).forEach((transfer: any, index: number) => {
+      transfers.slice(0, 10).forEach((transfer: any, index: number) => {
         const amount = transfer.value
           ? `${parseFloat(transfer.value) / 1e18} ETH`
           : '0 ETH';
