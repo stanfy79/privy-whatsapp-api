@@ -828,7 +828,7 @@ export async function getTransactionHistory(
 
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
-    const ARBITRUM_CHAIN_ID = '42161'; // Arbitrum One
+    const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
 
     const params = new URLSearchParams({
       chainid: ARBITRUM_CHAIN_ID,
@@ -838,7 +838,7 @@ export async function getTransactionHistory(
       startblock: '0',
       endblock: '99999999',
       page: '1',
-      offset: '5', // Last 5 transactions
+      offset: '9', // Last 10 transactions
       sort: 'desc', // Newest first
       apikey: ETHERSCAN_API_KEY,
     });
