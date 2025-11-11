@@ -815,7 +815,7 @@ export function validateUSDCAmount(amount: string): boolean {
   }
 }
 
-// Updated getTransactionHistory function for walletService.ts
+// Fetches both ETH transactions and ERC20 token transfers
 export async function getTransactionHistory(
   phoneNumber: string
 ): Promise<string> {
@@ -826,11 +826,13 @@ export async function getTransactionHistory(
     const address = user.walletAddress.toLowerCase();
     console.log(`Getting transaction history for: ${address}`);
 
-    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || 'YourApiKeyToken';
     const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
     const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
+    const USDC_CONTRACT_ADDRESS = '0xaf88d065e77c8cC2239327C5EDB3A432268e5831'; // USDC on Arbitrum
 
-    const params = new URLSearchParams({
+    // Fetch ETH transactions
+    const ethParams = new URLSearchParams({
       chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
       action: 'txlist',
@@ -838,47 +840,98 @@ export async function getTransactionHistory(
       startblock: '0',
       endblock: '99999999',
       page: '1',
-      offset: '10', // Last 10 transactions
-      sort: 'desc', // Newest first
+      offset: '10',
+      sort: 'desc',
       apikey: ETHERSCAN_API_KEY,
     });
 
-    const url = `${ETHERSCAN_BASE_URL}?${params}`;
-    const response = await axios.get(url);
+    // Fetch ERC20 token transfers (USDC)
+    const tokenParams = new URLSearchParams({
+      chainid: ARBITRUM_CHAIN_ID,
+      module: 'account',
+      action: 'tokentx',
+      address,
+      contractaddress: USDC_CONTRACT_ADDRESS,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '10',
+      sort: 'desc',
+      apikey: ETHERSCAN_API_KEY,
+    });
 
-    if (response.data.status === '1' && response.data.result?.length > 0) {
-      const transfers = response.data.result;
-      let historyText = `Found ${transfers.length} recent transaction(s):\n\n`;
+    const ethUrl = `${ETHERSCAN_BASE_URL}?${ethParams}`;
+    const tokenUrl = `${ETHERSCAN_BASE_URL}?${tokenParams}`;
 
-      transfers.slice(0, 10).forEach((transfer: any, index: number) => {
-        const amount = transfer.value
-          ? `${parseFloat(transfer.value) / 1e18} ETH`
-          : '0 ETH';
-        const to = transfer.to
-          ? `${transfer.to.substring(0, 8)}...${transfer.to.substring(36)}`
-          : 'Unknown';
-        const from = transfer.from
-          ? `${transfer.from.substring(0, 8)}...${transfer.from.substring(36)}`
-          : 'Unknown';
-        const isOutgoing = transfer.from.toLowerCase() === address;
-        const timestamp = new Date(parseInt(transfer.timeStamp, 10) * 1000).toLocaleString();
-        const status = transfer.txreceipt_status === '1' ? '✅' : '❌';
+    console.log('Fetching ETH transactions...');
+    const ethResponse = await axios.get(ethUrl);
+    
+    console.log('Fetching USDC token transfers...');
+    const tokenResponse = await axios.get(tokenUrl);
 
-        if (isOutgoing) {
-          historyText += `${index + 1}. Sent ${amount} to ${to} | ${timestamp} ${status}\n`;
-        } else {
-          historyText += `${index + 1}. Received ${amount} from ${from} | ${timestamp} ${status}\n`;
+    // Combine and sort transactions by timestamp
+    const allTransactions: any[] = [];
+
+    // Add ETH transactions
+    if (ethResponse.data.status === '1' && ethResponse.data.result?.length > 0) {
+      ethResponse.data.result.forEach((tx: any) => {
+        if (tx.value !== '0') { // Only include actual ETH transfers
+          allTransactions.push({
+            type: 'ETH',
+            timestamp: parseInt(tx.timeStamp),
+            hash: tx.hash,
+            from: tx.from,
+            to: tx.to,
+            value: tx.value,
+            status: tx.txreceipt_status,
+            date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+          });
         }
       });
-
-      return historyText;
     }
 
-    return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
-  } catch (error) {
-    console.error("Error getting transaction history:", error);
-    return "Unable to fetch transaction history at the moment.";
-  }
+    // Add USDC token transfers
+    if (tokenResponse.data.status === '1' && tokenResponse.data.result?.length > 0) {
+      tokenResponse.data.result.forEach((tx: any) => {
+        allTransactions.push({
+          type: 'USDC',
+          timestamp: parseInt(tx.timeStamp),
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          tokenDecimal: tx.tokenDecimal,
+          status: tx.txreceipt_status,
+          date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+        });
+      });
+    }
+
+    // Sort by timestamp (newest first)
+    allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+
+    if (allTransactions.length === 0) {
+      return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
+    }
+
+    // Display top 10 transactions
+    let historyText = `Found ${allTransactions.length} recent transaction(s):\n\n`;
+
+    allTransactions.slice(0, 10).forEach((tx: any, index: number) => {
+      const from = `${tx.from.substring(0, 8)}...${tx.from.substring(36)}`;
+      const to = `${tx.to.substring(0, 8)}...${tx.to.substring(36)}`;
+      const isOutgoing = tx.from.toLowerCase() === address;
+      const statusEmoji = tx.status === '1' ? '✅' : '❌';
+
+      let amount: string;
+      if (tx.type === 'ETH') {
+        amount = `${parseFloat(tx.value) / 1e18} ETH`;
+      } else {
+        // USDC has 6 decimals
+        amount = `${parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)} USDC`;
+      }
+    });
+  };
 }
 
 
