@@ -145,7 +145,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia\n⛽ *Gas:* Sponsored`
+          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia`
         );
       } catch (error) {
         console.error("Balance error:", error);
@@ -236,9 +236,9 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
       const recipient: User | null = await findUserByWalletAddress(sendData.address);
       // Only send template notification if recipient exists and has a phone number
-      if (recipient && recipient.phoneNumber) {
-        const balance = await getWalletBalance(recipient.phoneNumber);
-        await sendMetaTemplateMessage(recipient.phoneNumber, "credit_alert", {
+      if (recipient && recipient.phone) {
+        const balance = await getWalletBalance(recipient.phone);
+        await sendMetaTemplateMessage(recipient.phone, "credit_alert", {
           amount,
           token,
           sender: walletInfo?.walletAddress,
@@ -250,7 +250,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* https://sepolia.arbiscan.io/tx/${result.txHash}\n\n⛽ *Gas:* Sponsored\n*Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* https://sepolia.arbiscan.io/tx/${result.txHash} \n\n\n*Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
@@ -269,7 +269,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nReceive test ETH\nReceive test USDC\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nWallet address\nHistory\nHelp\n\n⛽ Gas fees sponsored\nNetwork: Arbitrum Sepolia`
+        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nReceive test ETH\nReceive test USDC\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nWallet address\nHistory\nHelp\n\n\nNetwork: Arbitrum Sepolia`
       );
     }
 
@@ -277,7 +277,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else {
       await sendWhatsAppMessage(
         phoneNumber,
-        `⚠️*Unknown Command*\n\nI didn’t understand: "${text}"\n\nType 'help' for a list of commands.`
+        `⚠️ *Unknown Command* \n\nI didn’t understand: "${text}"\n\nType 'help' for a list of commands.`
       );
     }
 

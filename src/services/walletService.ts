@@ -829,11 +829,13 @@ export async function getTransactionHistory(
     console.log(`Getting transaction history for: ${address}`);
 
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
-    const ARBITRUM_SEPOLIA_URL = 'https://api-sepolia.arbiscan.io/api';
+    const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
+    const ARBITRUM_SEPOLIA_URL = 'https://api.etherscan.io/v2/api';
     const USDC_CONTRACT = USDC_CONTRACT_ADDRESS.toLowerCase();
 
     // Fetch ETH transactions
     const ethParams = new URLSearchParams({
+      chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
       action: 'txlist',
       address,
@@ -847,6 +849,7 @@ export async function getTransactionHistory(
 
     // Fetch ERC20 token transfers (USDC)
     const tokenParams = new URLSearchParams({
+      chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
       action: 'tokentx',
       address,
@@ -976,80 +979,4 @@ export async function estimateGasCost(
     return "0.001"; // Fallback estimate
   }
 }
-
-
-// Replace your current sendTransactionNotification with this:
-// export async function sendTransactionNotification(
-//   recipientWalletAddress: string,
-//   amount: string,
-//   token: "ETH" | "USDC",
-//   txHash: string,
-//   ethBalance: string,
-//   usdcBalance: string
-// ): Promise<void> {
-//   try {
-//     // Normalize address
-//     const normalized = recipientWalletAddress.toLowerCase();
-
-//     // Try to find the user by wallet address (this must be implemented in userService)
-//     const recipient: User | null = await findUserByWalletAddress(normalized);
-
-//     if (!recipient) {
-//       console.warn("No user found for wallet address:", recipientWalletAddress);
-//       return;
-//     }
-
-//     const whatsappNumber = recipient.phoneNumber;
-//     if (!whatsappNumber) {
-//       console.warn("Found user but no phone number:", recipient);
-//       return;
-//     }
-
-//     const META_WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || process.env.META_WA_PHONE_NUMBER_ID;
-//     const META_WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_TOKEN || process.env.META_WA_ACCESS_TOKEN;
-
-//     if (!META_WHATSAPP_PHONE_ID || !META_WHATSAPP_ACCESS_TOKEN) {
-//       console.warn("WhatsApp env vars missing (WHATSAPP_PHONE_ID / WHATSAPP_TOKEN). Notification skipped.");
-//       return;
-//     }
-
-//     const url = `https://graph.facebook.com/v17.0/${META_WHATSAPP_PHONE_ID}/messages`;
-
-//     const variables = [
-//       amount,
-//       token,
-//       `https://sepolia.arbiscan.io/address/${recipientWalletAddress}`,
-//       `https://sepolia.arbiscan.io/tx/${txHash}`,
-//       ethBalance,
-//       usdcBalance,
-//     ];
-
-//     const body = {
-//       messaging_product: "whatsapp",
-//       to: whatsappNumber,
-//       type: "template",
-//       template: {
-//         name: "credit_alert",
-//         language: { code: "en" },
-//         components: [
-//           {
-//             type: "body",
-//             parameters: variables.map((v) => ({ type: "text", text: v })),
-//           },
-//         ],
-//       },
-//     };
-
-//     await axios.post(url, body, {
-//       headers: {
-//         Authorization: `Bearer ${META_WHATSAPP_ACCESS_TOKEN}`,
-//         "Content-Type": "application/json",
-//       },
-//     });
-
-//     console.log("WhatsApp template sent to", whatsappNumber);
-//   } catch (err: any) {
-//     console.error("Error sending WhatsApp transaction message:", err?.response?.data || err);
-//   }
-// }
 
