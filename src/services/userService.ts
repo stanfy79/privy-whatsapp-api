@@ -34,7 +34,7 @@ export async function getUser(phone: string): Promise<User | null> {
 }
 
 export async function findUserByWalletAddress(walletAddress: string): Promise<User | null> {
-  const normalized = walletAddress.toLowerCase();
+  const normalized = walletAddress;
 
   const querySnap = await db
     .collection("users")
