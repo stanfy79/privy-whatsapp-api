@@ -2,16 +2,27 @@
   "name": "privy-whatsapp-backend",
   "version": "1.0.0",
   "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/stanfy79/privy-whatsapp-api#readme",
+  "bugs": {
+    "url": "https://github.com/stanfy79/privy-whatsapp-api/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stanfy79/privy-whatsapp-api.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
   "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:wallet": "ts-node-esm tests/walletTest.ts",
     "dev": "tsx src/index.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
     "@alchemy/aa-alchemy": "^3.19.0",
     "@circle-fin/developer-controlled-wallets": "^8.4.1",

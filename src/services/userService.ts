@@ -5,33 +5,44 @@ export interface User {
   phone: string;
   privyId: string;
   walletAddress: string;
-  walletId?: string; // Add this optional field
+  walletId?: string;
   createdAt: string;
+  phoneNumber: string;
 }
 
 export async function saveUser(
   phone: string,
   privyId: string,
   walletAddress: string,
-  walletId?: string // Add optional wallet ID
+  walletId?: string,
 ): Promise<void> {
   const user: User = {
     phone,
     privyId,
-    walletAddress,
-    walletId, // Include wallet ID if provided
+    walletAddress: walletAddress.toLowerCase(), // IMPORTANT
+    walletId,
     createdAt: new Date().toISOString(),
+    phoneNumber: phone, 
   };
 
   await db.collection("users").doc(phone).set(user);
 }
 
 export async function getUser(phone: string): Promise<User | null> {
-  // Admin SDK syntax
   const docSnap = await db.collection("users").doc(phone).get();
-  
-  if (docSnap.exists) {
-    return docSnap.data() as User;
-  }
-  return null;
+  return docSnap.exists ? (docSnap.data() as User) : null;
+}
+
+export async function findUserByWalletAddress(walletAddress: string): Promise<User | null> {
+  const normalized = walletAddress.toLowerCase();
+
+  const querySnap = await db
+    .collection("users")
+    .where("walletAddress", "==", normalized)
+    .limit(1)
+    .get();
+
+  if (querySnap.empty) return null;
+
+  return querySnap.docs[0].data() as User;
 }

@@ -2,8 +2,9 @@
 import { privy } from "../config/privy";
 import { getUser, saveUser, User } from "./userService";
 import { APIError, PrivyAPIError } from "@privy-io/node";
-import axios from "axios";
 import { ethers } from "ethers";
+import { formatEther } from "ethers";
+import axios from "axios";
 import {
   createPublicClient,
   http,
@@ -18,6 +19,7 @@ import { toKernelSmartAccount } from "permissionless/accounts";
 import { entryPoint07Address } from "viem/account-abstraction";
 import { createSmartAccountClient } from "permissionless";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
+import { findUserByWalletAddress } from "./userService";
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
 
 const ARBITRUM_SEPOLIA_RPC = "https://sepolia-rollup.arbitrum.io/rpc";
@@ -842,7 +844,7 @@ export async function getTransactionHistory(
       page: '1',
       offset: '10',
       sort: 'desc',
-      apikey: ETHERSCAN_API_KEY,
+      apikey: ETHERSCAN_API_KEY || "",
     });
 
     // Fetch ERC20 token transfers (USDC)
@@ -857,7 +859,7 @@ export async function getTransactionHistory(
       page: '1',
       offset: '10',
       sort: 'desc',
-      apikey: ETHERSCAN_API_KEY,
+      apikey: ETHERSCAN_API_KEY || "",
     });
 
     const ethUrl = `${ETHERSCAN_BASE_URL}?${ethParams}`;
@@ -925,7 +927,7 @@ export async function getTransactionHistory(
 
       let amount: string;
       if (tx.type === 'ETH') {
-        amount = `${parseFloat(tx.value) / 1e18.toFixed(6)} ETH`;
+        amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)} ETH`;
       } else {
         // USDC has 6 decimals
         amount = `${parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)} USDC`;
@@ -938,7 +940,7 @@ export async function getTransactionHistory(
     return "Unable to fetch transaction history at the moment.";
   }
 };
-
+ 
 
 export async function getWalletInfo(phoneNumber: string): Promise<{
   privyId: string;
@@ -980,3 +982,80 @@ export async function estimateGasCost(
     return "0.001"; // Fallback estimate
   }
 }
+
+
+// Replace your current sendTransactionNotification with this:
+export async function sendTransactionNotification(
+  recipientWalletAddress: string,
+  amount: string,
+  token: "ETH" | "USDC",
+  txHash: string,
+  ethBalance: string,
+  usdcBalance: string
+): Promise<void> {
+  try {
+    // Normalize address
+    const normalized = recipientWalletAddress.toLowerCase();
+
+    // Try to find the user by wallet address (this must be implemented in userService)
+    const recipient: User | null = await findUserByWalletAddress(normalized);
+
+    if (!recipient) {
+      console.warn("No user found for wallet address:", recipientWalletAddress);
+      return;
+    }
+
+    const whatsappNumber = recipient.phoneNumber;
+    if (!whatsappNumber) {
+      console.warn("Found user but no phone number:", recipient);
+      return;
+    }
+
+    const META_WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || process.env.META_WA_PHONE_NUMBER_ID;
+    const META_WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_TOKEN || process.env.META_WA_ACCESS_TOKEN;
+
+    if (!META_WHATSAPP_PHONE_ID || !META_WHATSAPP_ACCESS_TOKEN) {
+      console.warn("WhatsApp env vars missing (WHATSAPP_PHONE_ID / WHATSAPP_TOKEN). Notification skipped.");
+      return;
+    }
+
+    const url = `https://graph.facebook.com/v17.0/${META_WHATSAPP_PHONE_ID}/messages`;
+
+    const variables = [
+      amount,
+      token,
+      `https://sepolia.arbiscan.io/address/${recipientWalletAddress}`,
+      `https://sepolia.arbiscan.io/tx/${txHash}`,
+      ethBalance,
+      usdcBalance,
+    ];
+
+    const body = {
+      messaging_product: "whatsapp",
+      to: whatsappNumber,
+      type: "template",
+      template: {
+        name: "credit_alert",
+        language: { code: "en" },
+        components: [
+          {
+            type: "body",
+            parameters: variables.map((v) => ({ type: "text", text: v })),
+          },
+        ],
+      },
+    };
+
+    await axios.post(url, body, {
+      headers: {
+        Authorization: `Bearer ${META_WHATSAPP_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("WhatsApp template sent to", whatsappNumber);
+  } catch (err: any) {
+    console.error("Error sending WhatsApp transaction message:", err?.response?.data || err);
+  }
+}
+

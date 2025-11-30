@@ -12,7 +12,8 @@ import {
   validateAmount,
   validateUSDCAmount,
   getTransactionHistory,
-  getWalletInfo
+  getWalletInfo,
+  sendTransactionNotification,
 } from "../services/walletService";
 
 const router = express.Router();
@@ -40,6 +41,59 @@ async function sendWhatsAppMessage(to: string, text: string) {
     );
   } catch (error) {
     console.error("⚠️ Failed to send WhatsApp message:", error);
+  }
+}
+
+
+// Utility to send Meta WhatsApp Template Messages (with variables)
+async function sendMetaTemplateMessage(
+  to: string,
+  templateName: string,
+  variables: {
+    amount: string;
+    token: string;
+    recipient: string;
+    txHash: string;
+    usdcBalance: string;
+    ethBalance: string;
+  }
+) {
+  try {
+    const bodyParams = [
+      { type: "text", text: variables.amount },
+      { type: "text", text: variables.token },
+      { type: "text", text: variables.recipient },
+      { type: "text", text: variables.txHash },
+      { type: "text", text: variables.ethBalance },
+      { type: "text", text: variables.usdcBalance },
+    ];
+    
+    await axios.post(
+      `https://graph.facebook.com/v17.0/${WHATSAPP_PHONE_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: bodyParams,
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (err: any) {
+    console.error("⚠️ Template send error:", err?.response?.data || err);
   }
 }
 
@@ -177,6 +231,19 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
           token === "ETH"
             ? await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount)
             : await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
+
+        const balance = await getWalletBalance(phoneNumber);
+
+        // Send WhatsApp Template Notification
+        await sendMetaTemplateMessage(phoneNumber, "credit_alert", {
+        amount,
+        token,
+        recipient: address,
+        txHash: result.txHash,
+        ethBalance: balance.eth.toString(),
+        usdcBalance: balance.usdc.toString(),
+      });
+
 
         await sendWhatsAppMessage(
           phoneNumber,
