@@ -236,19 +236,19 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
       const recipient: User | null = await findUserByWalletAddress(sendData.address);
       // Only send template notification if recipient exists and has a phone number
-      if (!recipient || !recipient.phone) {
-        console.log("Recipient no found:", recipient)
+      if (recipient && recipient.phone) {
+        const balance = await getWalletBalance(recipient.phone);
+        await sendMetaTemplateMessage(recipient.phone, "credit_alert", {
+          amount,
+          token,
+          sender: walletInfo?.walletAddress,
+          txHash: `https://sepolia.arbiscan.io/tx/${result.txHash}`,
+          ethBalance: balance.eth.toString(),
+          usdcBalance: balance.usdc.toString(),
+        });
+        console.log("Recipient found:", recipient, recipient?.phone);
       }
-      const balance = await getWalletBalance(recipient.phone);
-      await sendMetaTemplateMessage(recipient.phone, "credit_alert", {
-        amount,
-        token,
-        sender: walletInfo?.walletAddress,
-        txHash: `https://sepolia.arbiscan.io/tx/${result.txHash}`,
-        ethBalance: balance.eth.toString(),
-        usdcBalance: balance.usdc.toString(),
-      });
-      console.log("Recipient found:", recipient, recipient.phone);
+      console.log("Recipient found:", recipient, recipient?.phone);
 
         await sendWhatsAppMessage(
           phoneNumber,
