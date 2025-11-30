@@ -13,7 +13,6 @@ import {
   validateUSDCAmount,
   getTransactionHistory,
   getWalletInfo,
-  sendTransactionNotification,
 } from "../services/walletService";
 import { User } from "../services/userService";
 import { findUserByWalletAddress } from "../services/userService";
@@ -234,11 +233,11 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
             ? await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount)
             : await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
 
-      const balance = await getWalletBalance(phoneNumber);
-      const recipient: User | null = await findUserByWalletAddress(sendData.address);
 
+      const recipient: User | null = await findUserByWalletAddress(sendData.address);
       // Only send template notification if recipient exists and has a phone number
       if (recipient && recipient.phoneNumber) {
+        const balance = await getWalletBalance(recipient.phoneNumber);
         await sendMetaTemplateMessage(recipient.phoneNumber, "credit_alert", {
           amount,
           token,

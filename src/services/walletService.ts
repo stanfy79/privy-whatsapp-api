@@ -819,128 +819,122 @@ export function validateUSDCAmount(amount: string): boolean {
 
 // Fetches both ETH transactions and ERC20 token transfers
 export async function getTransactionHistory(
-  phoneNumber: string
+  phoneNumber: string
 ): Promise<string> {
-  try {
-    const user: User | null = await getUser(phoneNumber);
-    if (!user) throw new Error("User not found");
+  try {
+    const user: User | null = await getUser(phoneNumber);
+    if (!user) throw new Error("User not found");
 
-    const address = user.walletAddress.toLowerCase();
-    console.log(`Getting transaction history for: ${address}`);
+    const address = user.walletAddress.toLowerCase();
+    console.log(`Getting transaction history for: ${address}`);
 
-    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
-    const ETHERSCAN_BASE_URL = 'https://api.etherscan.io/v2/api';
-    const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
-    const USDC_CONTRACT_ADDRESS = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d'; // USDC on Arbitrum
+    const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+    const ARBITRUM_SEPOLIA_URL = 'https://api-sepolia.arbiscan.io/api';
+    const USDC_CONTRACT = USDC_CONTRACT_ADDRESS.toLowerCase();
 
-    // Fetch ETH transactions
-    const ethParams = new URLSearchParams({
-      chainid: ARBITRUM_CHAIN_ID,
-      module: 'account',
-      action: 'txlist',
-      address,
-      startblock: '0',
-      endblock: '99999999',
-      page: '1',
-      offset: '10',
-      sort: 'desc',
-      apikey: ETHERSCAN_API_KEY || "",
-    });
+    // Fetch ETH transactions
+    const ethParams = new URLSearchParams({
+      module: 'account',
+      action: 'txlist',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '10',
+      sort: 'desc',
+      apikey: ETHERSCAN_API_KEY || "",
+    });
 
-    // Fetch ERC20 token transfers (USDC)
-    const tokenParams = new URLSearchParams({
-      chainid: ARBITRUM_CHAIN_ID,
-      module: 'account',
-      action: 'tokentx',
-      address,
-      contractaddress: USDC_CONTRACT_ADDRESS,
-      startblock: '0',
-      endblock: '99999999',
-      page: '1',
-      offset: '10',
-      sort: 'desc',
-      apikey: ETHERSCAN_API_KEY || "",
-    });
+    // Fetch ERC20 token transfers (USDC)
+    const tokenParams = new URLSearchParams({
+      module: 'account',
+      action: 'tokentx',
+      address,
+      contractaddress: USDC_CONTRACT,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '10',
+      sort: 'desc',
+      apikey: ETHERSCAN_API_KEY || "",
+    });
 
-    const ethUrl = `${ETHERSCAN_BASE_URL}?${ethParams}`;
-    const tokenUrl = `${ETHERSCAN_BASE_URL}?${tokenParams}`;
+    const ethUrl = `${ARBITRUM_SEPOLIA_URL}?${ethParams}`;
+    const tokenUrl = `${ARBITRUM_SEPOLIA_URL}?${tokenParams}`;
 
-    console.log('Fetching ETH transactions...');
-    const ethResponse = await axios.get(ethUrl);
-    
-    console.log('Fetching USDC token transfers...');
-    const tokenResponse = await axios.get(tokenUrl);
+    console.log('Fetching ETH transactions...');
+    const ethResponse = await axios.get(ethUrl);
+    
+    console.log('Fetching USDC token transfers...');
+    const tokenResponse = await axios.get(tokenUrl);
 
-    // Combine and sort transactions by timestamp
-    const allTransactions: any[] = [];
+    const allTransactions: any[] = [];
 
-    // Add ETH transactions
-    if (ethResponse.data.status === '1' && ethResponse.data.result?.length > 0) {
-      ethResponse.data.result.forEach((tx: any) => {
-        if (tx.value !== '0') { // Only include actual ETH transfers
-          allTransactions.push({
-            type: 'ETH',
-            timestamp: parseInt(tx.timeStamp),
-            hash: tx.hash,
-            from: tx.from,
-            to: tx.to,
-            value: tx.value,
-            status: tx.txreceipt_status,
-            date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
-          });
-        }
-      });
-    }
+    // Add ETH transactions
+    if (ethResponse.data.status === '1' && ethResponse.data.result?.length > 0) {
+      ethResponse.data.result.forEach((tx: any) => {
+        if (tx.value !== '0') {
+          allTransactions.push({
+            type: 'ETH',
+            timestamp: parseInt(tx.timeStamp),
+            hash: tx.hash,
+            from: tx.from.toLowerCase(),
+            to: tx.to.toLowerCase(),
+            value: tx.value,
+            status: tx.txreceipt_status,
+            date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+          });
+        }
+      });
+    }
 
-    // Add USDC token transfers
-    if (tokenResponse.data.status === '1' && tokenResponse.data.result?.length > 0) {
-      tokenResponse.data.result.forEach((tx: any) => {
-        allTransactions.push({
-          type: 'USDC',
-          timestamp: parseInt(tx.timeStamp),
-          hash: tx.hash,
-          from: tx.from,
-          to: tx.to,
-          value: tx.value,
-          tokenDecimal: tx.tokenDecimal,
-          status: tx.txreceipt_status,
-          date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
-        });
-      });
-    }
+    // Add USDC token transfers
+    if (tokenResponse.data.status === '1' && tokenResponse.data.result?.length > 0) {
+      tokenResponse.data.result.forEach((tx: any) => {
+        allTransactions.push({
+          type: 'USDC',
+          timestamp: parseInt(tx.timeStamp),
+          hash: tx.hash,
+          from: tx.from.toLowerCase(),
+          to: tx.to.toLowerCase(),
+          value: tx.value,
+          tokenDecimal: tx.tokenDecimal || USDC_DECIMALS,
+          status: tx.txreceipt_status,
+          date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+        });
+      });
+    }
 
-    // Sort by timestamp (newest first)
-    allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+    allTransactions.sort((a, b) => b.timestamp - a.timestamp);
 
-    if (allTransactions.length === 0) {
-      return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
-    }
+    if (allTransactions.length === 0) {
+      return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
+    }
 
-    // Display top 10 transactions
-    let historyText = `Found ${allTransactions.length} recent transaction(s):\n\n`;
+    let historyText = `Found ${allTransactions.length} recent transaction(s):\n\n`;
 
-    allTransactions.slice(0, 10).forEach((tx: any, index: number) => {
-      const from = `${tx.from.substring(0, 8)}...${tx.from.substring(36)}`;
-      const to = `${tx.to.substring(0, 8)}...${tx.to.substring(36)}`;
-      const isOutgoing = tx.from.toLowerCase() === address;
-      const statusEmoji = tx.status === '1' ? '✅' : '❌';
+    allTransactions.slice(0, 10).forEach((tx: any, index: number) => {
+      const from = `${tx.from.substring(0, 8)}...${tx.from.substring(36)}`;
+      const to = `${tx.to.substring(0, 8)}...${tx.to.substring(36)}`;
+      const isOutgoing = tx.from === address;
+      const statusEmoji = tx.status === '1' ? '✅' : '❌';
 
-      let amount: string;
-      if (tx.type === 'ETH') {
-        amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)} ETH`;
-      } else {
-        // USDC has 6 decimals
-        amount = `${parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)} USDC`;
-      }
-       historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
-    })
-        return historyText;
+      let amount: string;
+      if (tx.type === 'ETH') {
+        amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)} ETH`;
+      } else {
+        amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)} USDC`;
+      }
+
+      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
+    });
+
+    return historyText;
   } catch (error) {
-    console.error("Error getting transaction history:", error);
-    return "Unable to fetch transaction history at the moment.";
-  }
-};
- 
+    console.error("Error getting transaction history:", error);
+    return "Unable to fetch transaction history at the moment.";
+  }
+}
 
 export async function getWalletInfo(phoneNumber: string): Promise<{
   privyId: string;
@@ -985,77 +979,77 @@ export async function estimateGasCost(
 
 
 // Replace your current sendTransactionNotification with this:
-export async function sendTransactionNotification(
-  recipientWalletAddress: string,
-  amount: string,
-  token: "ETH" | "USDC",
-  txHash: string,
-  ethBalance: string,
-  usdcBalance: string
-): Promise<void> {
-  try {
-    // Normalize address
-    const normalized = recipientWalletAddress.toLowerCase();
+// export async function sendTransactionNotification(
+//   recipientWalletAddress: string,
+//   amount: string,
+//   token: "ETH" | "USDC",
+//   txHash: string,
+//   ethBalance: string,
+//   usdcBalance: string
+// ): Promise<void> {
+//   try {
+//     // Normalize address
+//     const normalized = recipientWalletAddress.toLowerCase();
 
-    // Try to find the user by wallet address (this must be implemented in userService)
-    const recipient: User | null = await findUserByWalletAddress(normalized);
+//     // Try to find the user by wallet address (this must be implemented in userService)
+//     const recipient: User | null = await findUserByWalletAddress(normalized);
 
-    if (!recipient) {
-      console.warn("No user found for wallet address:", recipientWalletAddress);
-      return;
-    }
+//     if (!recipient) {
+//       console.warn("No user found for wallet address:", recipientWalletAddress);
+//       return;
+//     }
 
-    const whatsappNumber = recipient.phoneNumber;
-    if (!whatsappNumber) {
-      console.warn("Found user but no phone number:", recipient);
-      return;
-    }
+//     const whatsappNumber = recipient.phoneNumber;
+//     if (!whatsappNumber) {
+//       console.warn("Found user but no phone number:", recipient);
+//       return;
+//     }
 
-    const META_WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || process.env.META_WA_PHONE_NUMBER_ID;
-    const META_WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_TOKEN || process.env.META_WA_ACCESS_TOKEN;
+//     const META_WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || process.env.META_WA_PHONE_NUMBER_ID;
+//     const META_WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_TOKEN || process.env.META_WA_ACCESS_TOKEN;
 
-    if (!META_WHATSAPP_PHONE_ID || !META_WHATSAPP_ACCESS_TOKEN) {
-      console.warn("WhatsApp env vars missing (WHATSAPP_PHONE_ID / WHATSAPP_TOKEN). Notification skipped.");
-      return;
-    }
+//     if (!META_WHATSAPP_PHONE_ID || !META_WHATSAPP_ACCESS_TOKEN) {
+//       console.warn("WhatsApp env vars missing (WHATSAPP_PHONE_ID / WHATSAPP_TOKEN). Notification skipped.");
+//       return;
+//     }
 
-    const url = `https://graph.facebook.com/v17.0/${META_WHATSAPP_PHONE_ID}/messages`;
+//     const url = `https://graph.facebook.com/v17.0/${META_WHATSAPP_PHONE_ID}/messages`;
 
-    const variables = [
-      amount,
-      token,
-      `https://sepolia.arbiscan.io/address/${recipientWalletAddress}`,
-      `https://sepolia.arbiscan.io/tx/${txHash}`,
-      ethBalance,
-      usdcBalance,
-    ];
+//     const variables = [
+//       amount,
+//       token,
+//       `https://sepolia.arbiscan.io/address/${recipientWalletAddress}`,
+//       `https://sepolia.arbiscan.io/tx/${txHash}`,
+//       ethBalance,
+//       usdcBalance,
+//     ];
 
-    const body = {
-      messaging_product: "whatsapp",
-      to: whatsappNumber,
-      type: "template",
-      template: {
-        name: "credit_alert",
-        language: { code: "en" },
-        components: [
-          {
-            type: "body",
-            parameters: variables.map((v) => ({ type: "text", text: v })),
-          },
-        ],
-      },
-    };
+//     const body = {
+//       messaging_product: "whatsapp",
+//       to: whatsappNumber,
+//       type: "template",
+//       template: {
+//         name: "credit_alert",
+//         language: { code: "en" },
+//         components: [
+//           {
+//             type: "body",
+//             parameters: variables.map((v) => ({ type: "text", text: v })),
+//           },
+//         ],
+//       },
+//     };
 
-    await axios.post(url, body, {
-      headers: {
-        Authorization: `Bearer ${META_WHATSAPP_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    });
+//     await axios.post(url, body, {
+//       headers: {
+//         Authorization: `Bearer ${META_WHATSAPP_ACCESS_TOKEN}`,
+//         "Content-Type": "application/json",
+//       },
+//     });
 
-    console.log("WhatsApp template sent to", whatsappNumber);
-  } catch (err: any) {
-    console.error("Error sending WhatsApp transaction message:", err?.response?.data || err);
-  }
-}
+//     console.log("WhatsApp template sent to", whatsappNumber);
+//   } catch (err: any) {
+//     console.error("Error sending WhatsApp transaction message:", err?.response?.data || err);
+//   }
+// }
 
