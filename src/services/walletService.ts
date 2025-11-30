@@ -929,7 +929,7 @@ export async function getTransactionHistory(
         amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)} USDC`;
       }
 
-      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
+      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n\n From: ${from}\n\n To: ${to}\n\n Date: ${tx.date} ${statusEmoji}\n\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
     });
 
     return historyText;

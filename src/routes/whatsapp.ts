@@ -145,7 +145,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `*Your Wallet Balance*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia`
+          `*🏦 Your Wallet Balance is:*\n\n${balance.eth} ETH\n ${balance.usdc} USDC\n\n *Network:* Arbitrum Sepolia`
         );
       } catch (error) {
         console.error("Balance error:", error);
@@ -158,7 +158,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       try {
         const history = await getTransactionHistory(phoneNumber);
         const walletInfo = await getWalletInfo(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👉 https://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`);
+        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👇 \nhttps://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`);
       } catch (error) {
         console.error("History error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to fetch history.");
@@ -166,27 +166,27 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     }
 
     // --- Command: RECEIVE TEST TOKEN ---
-    else if (text.includes("request test usdc") || text.includes("test usdc") || text.includes("Request test USDC" )) {
+    else if (text.includes("request test usdc") || text.includes("test usdc") || text.includes("Receive test USDC" )) {
       try {
         const faucetResult = await sendUsdcFaucet(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, ` *Test USDC Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
+        await sendWhatsAppMessage(phoneNumber, ` *Test USDC Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
       }
     }
 
-    else if (text.includes("request test eth") || text.includes("test eth") || text.includes("Request test ETH" )) {
+    else if (text.includes("request test eth") || text.includes("test eth") || text.includes("Receive test eth" )) {
       try {
         const faucetResult = await sendEthFaucet(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n Use 'balance' to check tokens\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
+        await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet!`);
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
       }
     }
 
-    else if (text === "address" || text === "wallet address") {
+    else if (text === "wallet" || text === "wallet address") {
     const walletAddress = await getWalletInfo(phoneNumber);
     if (walletAddress) {
       await sendWhatsAppMessage(phoneNumber, `${walletAddress.walletAddress}`);
@@ -203,7 +203,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         if (!sendData) {
           await sendWhatsAppMessage(
             phoneNumber,
-            `⚠️*Invalid send format* \n\n *Examples:*\n• send 0.1 eth to 0xabc123... ✅\n• send 50 usdc to 0xabc123... ✅`
+            `⚠️*Invalid send format* \n\n *Examples:*\n\n• send 0.1 eth to 0xabc123... ✅\n\n• send 50 usdc to 0xabc123... ✅`
           );
           return res.sendStatus(200);
         }
@@ -222,7 +222,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
         const walletInfo = await getWalletInfo(phoneNumber);
         if (!walletInfo || !walletInfo.walletId) {
-          await sendWhatsAppMessage(phoneNumber, "⚠️ Wallet not found. Create one with 'create wallet'.");
+          await sendWhatsAppMessage(phoneNumber, "⚠️ Wallet not found. \n\nCreate one with 'create wallet'.");
           return res.sendStatus(200);
         }
 
@@ -250,7 +250,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
         await sendWhatsAppMessage(
           phoneNumber,
-          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n*TX Hash:* https://sepolia.arbiscan.io/tx/${result.txHash} \n\n\n*Network:* Arbitrum Sepolia`
+          `✅ *Transaction Sent!*\n\n*Amount:* ${amount} ${token}\n\n*To:* ${address.substring(0, 10)}...${address.substring(36)}\n\n*TX Hash:* https://sepolia.arbiscan.io/tx/${result.txHash} \n\n\n*Network:* Arbitrum Sepolia`
         );
       } catch (error: any) {
         console.error("Send error:", error.message);
@@ -269,7 +269,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     else if (["help", "menu"].includes(text)) {
       await sendWhatsAppMessage(
         phoneNumber,
-        `*Crypto Wallet Bot Commands*\n\nCreate wallet\nReceive test ETH\nReceive test USDC\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nWallet address\nHistory\nHelp\n\n\nNetwork: Arbitrum Sepolia`
+        `*BlockBot Commands*\n\nCreate wallet\nReceive test ETH\nReceive test USDC\nBalance\nSend [amount] eth to [address]\nSend [amount] usdc to [address]\nWallet address\nHistory\nHelp\n\n\nNetwork: Arbitrum Sepolia`
       );
     }
 
