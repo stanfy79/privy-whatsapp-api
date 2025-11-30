@@ -246,6 +246,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
           ethBalance: balance.eth.toString(),
           usdcBalance: balance.usdc.toString(),
         });
+        console.log("Recipient found:", recipient, recipient.phone);
       }
 
         await sendWhatsAppMessage(
