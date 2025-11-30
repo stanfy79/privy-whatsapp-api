@@ -242,7 +242,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         await sendMetaTemplateMessage(recipient.phoneNumber, "credit_alert", {
           amount,
           token,
-          sender: `https://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`,
+          sender: walletInfo?.walletAddress,
           txHash: `https://sepolia.arbiscan.io/tx/${result.txHash}`,
           ethBalance: balance.eth.toString(),
           usdcBalance: balance.usdc.toString(),
