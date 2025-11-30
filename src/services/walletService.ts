@@ -439,7 +439,7 @@ export async function sendETH(
     console.log("Waiting for transaction confirmation...");
 
     const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash,
+      hash: txHash as `0x${string}`,
     });
 
     console.log("Transaction confirmed!");
@@ -572,7 +572,7 @@ export async function sendUSDC(
     console.log("Waiting for transaction confirmation...");
 
     const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash,
+      hash: txHash as `0x${string}`,
     });
 
     console.log("USDC Transaction confirmed!");

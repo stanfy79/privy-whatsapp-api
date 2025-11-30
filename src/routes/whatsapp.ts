@@ -15,6 +15,8 @@ import {
   getWalletInfo,
   sendTransactionNotification,
 } from "../services/walletService";
+import { User } from "../services/userService";
+import { findUserByWalletAddress } from "../services/userService";
 
 const router = express.Router();
 
@@ -52,7 +54,7 @@ async function sendMetaTemplateMessage(
   variables: {
     amount: string;
     token: string;
-    recipient: string;
+    sender: string;
     txHash: string;
     usdcBalance: string;
     ethBalance: string;
@@ -62,10 +64,10 @@ async function sendMetaTemplateMessage(
     const bodyParams = [
       { type: "text", text: variables.amount },
       { type: "text", text: variables.token },
-      { type: "text", text: variables.recipient },
+      { type: "text", text: variables.sender },
       { type: "text", text: variables.txHash },
-      { type: "text", text: variables.ethBalance },
       { type: "text", text: variables.usdcBalance },
+      { type: "text", text: variables.ethBalance },
     ];
     
     await axios.post(
@@ -232,18 +234,20 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
             ? await sendETH(walletInfo.walletId, address, walletInfo.walletAddress, amount)
             : await sendUSDC(walletInfo.walletId, address, walletInfo.walletAddress, amount);
 
-        const balance = await getWalletBalance(phoneNumber);
+      const balance = await getWalletBalance(phoneNumber);
+      const recipient: User | null = await findUserByWalletAddress(sendData.address);
 
-        // Send WhatsApp Template Notification
-        await sendMetaTemplateMessage(phoneNumber, "credit_alert", {
-        amount,
-        token,
-        recipient: address,
-        txHash: result.txHash,
-        ethBalance: balance.eth.toString(),
-        usdcBalance: balance.usdc.toString(),
-      });
-
+      // Only send template notification if recipient exists and has a phone number
+      if (recipient && recipient.phoneNumber) {
+        await sendMetaTemplateMessage(recipient.phoneNumber, "credit_alert", {
+          amount,
+          token,
+          sender: `https://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`,
+          txHash: `https://sepolia.arbiscan.io/tx/${result.txHash}`,
+          ethBalance: balance.eth.toString(),
+          usdcBalance: balance.usdc.toString(),
+        });
+      }
 
         await sendWhatsAppMessage(
           phoneNumber,
