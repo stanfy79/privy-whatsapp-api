@@ -872,44 +872,48 @@ export async function getTransactionHistory(
     console.log('Fetching USDC token transfers...');
     const tokenResponse = await axios.get(tokenUrl);
 
-    const allTransactions: any[] = [];
+    // Build per-token lists and limit each to 10 entries to ensure we return
+    // up to 10 ETH and up to 10 USDC transactions (maximum 20 combined).
+    const ethTransactions: any[] = [];
+    const usdcTransactions: any[] = [];
 
-    // Add ETH transactions
     if (ethResponse.data.status === '1' && ethResponse.data.result?.length > 0) {
-      ethResponse.data.result.forEach((tx: any) => {
+      for (const tx of ethResponse.data.result) {
         if (tx.value !== '0') {
-          allTransactions.push({
+          ethTransactions.push({
             type: 'ETH',
             timestamp: parseInt(tx.timeStamp),
             hash: tx.hash,
             from: tx.from.toLowerCase(),
-            to: tx.to.toLowerCase(),
+            to: tx.to?.toLowerCase(),
             value: tx.value,
             status: tx.txreceipt_status,
             date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
           });
         }
-      });
+        if (ethTransactions.length >= 10) break;
+      }
     }
 
-    // Add USDC token transfers
     if (tokenResponse.data.status === '1' && tokenResponse.data.result?.length > 0) {
-      tokenResponse.data.result.forEach((tx: any) => {
-        allTransactions.push({
+      for (const tx of tokenResponse.data.result) {
+        usdcTransactions.push({
           type: 'USDC',
           timestamp: parseInt(tx.timeStamp),
           hash: tx.hash,
           from: tx.from.toLowerCase(),
-          to: tx.to.toLowerCase(),
+          to: tx.to?.toLowerCase(),
           value: tx.value,
           tokenDecimal: tx.tokenDecimal || USDC_DECIMALS,
           status: tx.txreceipt_status,
           date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
         });
-      });
+        if (usdcTransactions.length >= 10) break;
+      }
     }
 
-    allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+    // Combine and sort so the most recent combined transactions appear first.
+    const allTransactions = [...ethTransactions, ...usdcTransactions].sort((a, b) => b.timestamp - a.timestamp);
 
     if (allTransactions.length === 0) {
       return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
@@ -930,7 +934,7 @@ export async function getTransactionHistory(
         amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)} USDC`;
       }
 
-      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n\n From: ${from}\n\n To: ${to}\n\n Date: ${tx.date} ${statusEmoji}\n\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n`;
+      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n\n From: ${from}\n\n To: ${to}\n\n Date: ${tx.date} ${statusEmoji}\n\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n\n`;
     });
 
     return historyText;
