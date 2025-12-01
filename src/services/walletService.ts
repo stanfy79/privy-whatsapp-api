@@ -834,7 +834,7 @@ export async function getTransactionHistory(
     const ARBITRUM_SEPOLIA_URL = 'https://api.etherscan.io/v2/api';
     const USDC_CONTRACT = USDC_CONTRACT_ADDRESS.toLowerCase();
 
-    // Fetch ETH transactions
+    // Fetch ETH transactions (get 20 to ensure we capture recent ones after sorting with USDC)
     const ethParams = new URLSearchParams({
       chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
@@ -843,12 +843,12 @@ export async function getTransactionHistory(
       startblock: '0',
       endblock: '99999999',
       page: '1',
-      offset: '10',
+      offset: '20',
       sort: 'desc',
       apikey: ETHERSCAN_API_KEY || "",
     });
 
-    // Fetch ERC20 token transfers (USDC)
+    // Fetch ERC20 token transfers (USDC) (get 20 to ensure we capture recent ones after sorting with ETH)
     const tokenParams = new URLSearchParams({
       chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
@@ -858,7 +858,7 @@ export async function getTransactionHistory(
       startblock: '0',
       endblock: '99999999',
       page: '1',
-      offset: '10',
+      offset: '20',
       sort: 'desc',
       apikey: ETHERSCAN_API_KEY || "",
     });
@@ -872,8 +872,7 @@ export async function getTransactionHistory(
     console.log('Fetching USDC token transfers...');
     const tokenResponse = await axios.get(tokenUrl);
 
-    // Build per-token lists and limit each to 10 entries to ensure we return
-    // up to 10 ETH and up to 10 USDC transactions (maximum 20 combined).
+    // Build per-token lists (fetch up to 20 from each, then sort combined and take top 10)
     const ethTransactions: any[] = [];
     const usdcTransactions: any[] = [];
 
@@ -891,7 +890,6 @@ export async function getTransactionHistory(
             date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
           });
         }
-        if (ethTransactions.length >= 10) break;
       }
     }
 
@@ -908,30 +906,33 @@ export async function getTransactionHistory(
           status: tx.txreceipt_status,
           date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
         });
-        if (usdcTransactions.length >= 10) break;
       }
     }
 
-    // Combine and sort so the most recent combined transactions appear first.
+    // Combine all transactions and sort by timestamp (most recent first)
     const allTransactions = [...ethTransactions, ...usdcTransactions].sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Take only the top 10 most recent transactions
+    const topTenTransactions = allTransactions.slice(0, 10);
 
     if (allTransactions.length === 0) {
       return "No recent transactions found.\n\nStart by sending some ETH or USDC!";
     }
 
-    let historyText = `Found ${allTransactions.length} recent transaction(s):\n\n`;
+    let historyText = `Found ${allTransactions.length} recent transaction(s). Showing top 10:\n\n`;
 
-    allTransactions.slice(0, 10).forEach((tx: any, index: number) => {
+    // Display the 10 most recent transactions (combined ETH + USDC, sorted by timestamp)
+    topTenTransactions.forEach((tx: any, index: number) => {
       const from = `${tx.from.substring(0, 8)}...${tx.from.substring(36)}`;
-      const to = `${tx.to.substring(0, 8)}...${tx.to.substring(36)}`;
+      const to = `${tx.to?.substring(0, 8)}...${tx.to?.substring(36)}`;
       const isOutgoing = tx.from === address;
       const statusEmoji = tx.status === '1' ? '✅' : '❌';
 
       let amount: string;
       if (tx.type === 'ETH') {
-        amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)} ETH`;
+        amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)}`;
       } else {
-        amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)} USDC`;
+        amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)}`;
       }
 
       historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n\n From: ${from}\n\n To: ${to}\n\n Date: ${tx.date} ${statusEmoji}\n\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n\n`;
