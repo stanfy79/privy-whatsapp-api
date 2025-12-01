@@ -19,7 +19,7 @@ export async function saveUser(
   const user: User = {
     phone,
     privyId,
-    walletAddress: walletAddress.toLowerCase(), // IMPORTANT
+    walletAddress: String(walletAddress).toLowerCase().trim(), // IMPORTANT: normalize
     walletId,
     createdAt: new Date().toISOString(),
     phoneNumber: phone, 
@@ -34,7 +34,7 @@ export async function getUser(phone: string): Promise<User | null> {
 }
 
 export async function findUserByWalletAddress(walletAddress: string): Promise<User | null> {
-  const normalized = walletAddress;
+  const normalized = String(walletAddress).toLowerCase().trim();
 
   const querySnap = await db
     .collection("users")

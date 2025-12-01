@@ -21,7 +21,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:wallet": "ts-node-esm tests/walletTest.ts",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "migrate:wallet": "tsx src/config/convert.ts"
   },
   "dependencies": {
     "@alchemy/aa-alchemy": "^3.19.0",
@@ -29,11 +30,11 @@
     "@privy-io/node": "^0.1.0",
     "axios": "^1.12.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
     "firebase": "^12.3.0",
-    "firebase-admin": "^13.5.0",
+    "firebase-admin": "^13.6.0",
     "libphonenumber-js": "^1.12.18",
     "permissionless": "^0.2.57",
     "twilio": "^5.10.0",

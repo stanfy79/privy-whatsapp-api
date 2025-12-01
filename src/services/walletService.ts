@@ -214,10 +214,11 @@ export async function createWalletForUser(
 
     const walletId = wallet.id;
     const walletAddress = wallet.address;
+    const normalizedWalletAddress = String(walletAddress).toLowerCase().trim();
 
     console.log(`Wallet created successfully:`);
     console.log(`   - Wallet ID: ${walletId}`);
-    console.log(`   - Address: ${walletAddress}`);
+    console.log(`   - Address: ${walletAddress} -> ${normalizedWalletAddress}`);
     console.log(`   - User ID: ${privyId}`);
 
     // Step 3: Note about gas sponsorship
@@ -227,11 +228,11 @@ export async function createWalletForUser(
       `Wallet created successfully - gas sponsorship may be configured via Privy Dashboard`
     );
 
-    // Step 4: Save user data with wallet ID
-    await saveUser(phoneNumber, privyId, walletAddress, walletId);
+    // Step 4: Save user data with normalized wallet address
+    await saveUser(phoneNumber, privyId, normalizedWalletAddress, walletId);
     console.log(`User data saved for phone: ${phoneNumber}`);
 
-    return { privyId, walletAddress, walletId, alreadyExists: false };
+    return { privyId, walletAddress: normalizedWalletAddress, walletId, alreadyExists: false };
   } catch (error) {
     console.error("Error creating wallet for user:", error);
     throw new Error(
