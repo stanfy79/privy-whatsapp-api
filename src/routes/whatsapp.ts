@@ -41,7 +41,7 @@ async function sendWhatsAppMessage(to: string, text: string) {
       }
     );
   } catch (error) {
-    console.error("⚠️ Failed to send WhatsApp message:", error);
+    console.error("⚠️ Failed to send WhatsApp message:");
   }
 }
 
@@ -115,7 +115,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     const phoneNumber = message.from;
     const text = (message.text?.body || "").trim().toLowerCase();
 
-    console.log(`📱 Message from ${phoneNumber}: "${text}"`);
+    console.log(`📱 Message from user: "${text}"`);
 
     // --- Command: CREATE WALLET ---
     if (text === "create wallet") {
@@ -159,6 +159,8 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const history = await getTransactionHistory(phoneNumber);
         const walletInfo = await getWalletInfo(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👇 \nhttps://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`);
+        
+    // console.log(history);
       } catch (error) {
         console.error("History error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to fetch history.");
@@ -238,7 +240,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       // Only send template notification if recipient exists and has a phone number
       if (recipient && recipient.phone) {
         const balance = await getWalletBalance(recipient.phone);
-        await sendMetaTemplateMessage(recipient.phone, "credit_alert", {
+        await sendMetaTemplateMessage(recipient.phone, "deposit_alert", {
           amount,
           token,
           sender: walletInfo?.walletAddress,

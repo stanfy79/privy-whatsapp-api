@@ -832,6 +832,7 @@ export async function getTransactionHistory(
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
     const ARBITRUM_SEPOLIA_URL = 'https://api.etherscan.io/v2/api';
+    const ARBITRUM_SEPOLIA_URL_USDC = 'https://api.etherscan.io/v2/api';
     const USDC_CONTRACT = USDC_CONTRACT_ADDRESS.toLowerCase();
 
     // Fetch ETH transactions (get 20 to ensure we capture recent ones after sorting with USDC)
@@ -853,8 +854,8 @@ export async function getTransactionHistory(
       chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
       action: 'tokentx',
-      address,
       contractaddress: USDC_CONTRACT,
+      address,
       startblock: '0',
       endblock: '99999999',
       page: '1',
@@ -864,19 +865,24 @@ export async function getTransactionHistory(
     });
 
     const ethUrl = `${ARBITRUM_SEPOLIA_URL}?${ethParams}`;
-    const tokenUrl = `${ARBITRUM_SEPOLIA_URL}?${tokenParams}`;
+    const tokenUrl = `${ARBITRUM_SEPOLIA_URL_USDC}?${tokenParams}`;
 
     console.log('Fetching ETH transactions...');
     const ethResponse = await axios.get(ethUrl);
+    console.log(`ETH Response Status: ${ethResponse.data.status}, Count: ${ethResponse.data.result?.length || 0}`);
     
     console.log('Fetching USDC token transfers...');
     const tokenResponse = await axios.get(tokenUrl);
+    console.log(`USDC Response Status: ${tokenResponse.data.status}, Count: ${tokenResponse.data.result?.length || 0}`);
+    // console.log('USDC Response:', JSON.stringify(tokenResponse.data, null, 2));
+    // console.log('ETH Response:', JSON.stringify(ethResponse.data, null, 2));
+    // console.log('Token Response:', JSON.stringify(tokenResponse.data, null, 2));
 
     // Build per-token lists (fetch up to 20 from each, then sort combined and take top 10)
     const ethTransactions: any[] = [];
     const usdcTransactions: any[] = [];
 
-    if (ethResponse.data.status === '1' && ethResponse.data.result?.length > 0) {
+    if (ethResponse.data.status === '1' && Array.isArray(ethResponse.data.result) && ethResponse.data.result.length > 0) {
       for (const tx of ethResponse.data.result) {
         if (tx.value !== '0') {
           ethTransactions.push({
@@ -893,7 +899,8 @@ export async function getTransactionHistory(
       }
     }
 
-    if (tokenResponse.data.status === '1' && tokenResponse.data.result?.length > 0) {
+    if (tokenResponse.data.status === '1' && Array.isArray(tokenResponse.data.result) && tokenResponse.data.result.length > 0) {
+      console.log(`Found ${tokenResponse.data.result.length} USDC transactions`);
       for (const tx of tokenResponse.data.result) {
         usdcTransactions.push({
           type: 'USDC',
@@ -907,6 +914,8 @@ export async function getTransactionHistory(
           date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
         });
       }
+    } else {
+      console.log('No USDC transactions found or API error:', tokenResponse.data);
     }
 
     // Combine all transactions and sort by timestamp (most recent first)
