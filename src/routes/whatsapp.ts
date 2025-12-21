@@ -65,8 +65,8 @@ async function sendMetaTemplateMessage(
       { type: "text", text: variables.token },
       { type: "text", text: variables.sender },
       { type: "text", text: variables.txHash },
-      { type: "text", text: variables.usdcBalance },
       { type: "text", text: variables.ethBalance },
+      { type: "text", text: variables.usdcBalance },
     ];
     
     await axios.post(
