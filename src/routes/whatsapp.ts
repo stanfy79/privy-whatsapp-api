@@ -55,8 +55,8 @@ async function sendMetaTemplateMessage(
     token: string;
     sender: string;
     txHash: string;
-    usdcBalance: string;
     ethBalance: string;
+    usdcBalance: string;
   }
 ) {
   try {
