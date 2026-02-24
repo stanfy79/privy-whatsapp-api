@@ -173,7 +173,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
       try {
         const history = await getTransactionHistory(phoneNumber);
         const walletInfo = await getWalletInfo(phoneNumber);
-        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👇 \nhttps://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}`);
+        await sendWhatsAppMessage(phoneNumber, `📈 *Transaction History*\n\n${history}\n\n Check full history on Arbiscan 👇 \nhttps://sepolia.arbiscan.io/address/${walletInfo?.walletAddress}\n\n Check full history on Avalanche 👇 \nhttps://subnets-test.avax.network/c-chain/address/${walletInfo?.walletAddress}`);
         
     // console.log(history);
       } catch (error) {

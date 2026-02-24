@@ -1224,7 +1224,7 @@ export async function getTransactionHistory(
 
       historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Chain: ${chain}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: ${explorerUrl}${tx.hash}\n\n`;
     });
-    console.log('Compiled transaction history text:', historyText);
+    
     return historyText;
   } catch (error) {
     console.error("Error getting transaction history:", error);
