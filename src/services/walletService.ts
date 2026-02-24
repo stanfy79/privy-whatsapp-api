@@ -14,6 +14,7 @@ import {
   formatUnits,
 } from "viem";
 import { arbitrumSepolia } from "viem/chains";
+import { avalancheFuji } from "viem/chains";
 import { createViemAccount } from "@privy-io/node/viem";
 import { toKernelSmartAccount } from "permissionless/accounts";
 import { entryPoint07Address } from "viem/account-abstraction";
@@ -25,6 +26,10 @@ import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-
 const ARBITRUM_SEPOLIA_RPC = "https://sepolia-rollup.arbitrum.io/rpc";
 const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
 const ARBITRUM_SEPOLIA_CAIP2 = "eip155:421614";
+
+const AVALANCHE_FUJI_RPC = "https://api.avax-test.network/ext/bc/C/rpc";
+const AVALANCHE_FUJI_CHAIN_ID = 43113;
+const AVALACHE_FUJI_CAIP2 = "eip155:43113";
 
 // Define the TestnetBlockchain enum based on the allowed values in the documentation
 enum TestnetBlockchain {
@@ -42,6 +47,9 @@ enum TestnetBlockchain {
 // USDC Contract Address on Arbitrum Sepolia
 const USDC_CONTRACT_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"; // Official Arbitrum Sepolia USDC
 const USDC_DECIMALS = 6;
+
+const AVALANCHE_FUJI_USDC_CONTRACT_ADDRESS = "0x5425890298aed601595a70AB815c96711a31Bc65"; // Official Avalanche Fuji USDC
+const AVALANCHE_FUJI_USDC_DECIMALS = 6;
 
 // ERC20 ABI for USDC operations
 const ERC20_ABI = [
@@ -83,6 +91,11 @@ const publicClient = createPublicClient({
   transport: http(ARBITRUM_SEPOLIA_RPC),
 });
 
+const publicClientAvaxFuji = createPublicClient({
+  chain: avalancheFuji,
+  transport: http(AVALANCHE_FUJI_RPC),
+});
+
 // Alchemy Gas Manager configuration
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 console.log(
@@ -95,14 +108,21 @@ if (!ALCHEMY_API_KEY) {
 const ALCHEMY_GAS_MANAGER_POLICY_ID = process.env.ALCHEMY_GAS_MANAGER_POLICY_ID;
 const ALCHEMY_RPC_URL = `https://arb-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 
-// Initialize provider
-const provider = new ethers.JsonRpcProvider(
+// Initialize arbitrumProvider
+const arbitrumProvider = new ethers.JsonRpcProvider(
   ALCHEMY_RPC_URL,
   ARBITRUM_SEPOLIA_CHAIN_ID
 );
 
+// Initialize avalanchProvider
+const avalancheProvider = new ethers.JsonRpcProvider(
+  AVALANCHE_FUJI_RPC,
+  AVALANCHE_FUJI_CHAIN_ID
+);
+
 const bundlerUrl = `https://api.pimlico.io/v2/421614/rpc?apikey=${process.env.PIMLICO_API_KEY}`;
-const paymasterUrl = `https://api.pimlico.io/v2/421614/rpc?apikey=${process.env.PIMLICO_API_KEY}`;
+const arbitrumPaymasterUrl = `https://api.pimlico.io/v2/421614/rpc?apikey=${process.env.PIMLICO_API_KEY}`;
+const avalanchePaymasterUrl = `https://api.pimlico.io/v2/43113/rpc?apikey=${process.env.PIMLICO_API_KEY}`;
 
 // Circle SDK configuration for faucet
 const CIRCLE_API_KEY = process.env.CIRCLE_API_KEY;
@@ -114,7 +134,7 @@ export async function createWalletForUser(
 ): Promise<{ privyId: string; walletAddress: string; walletId: string; alreadyExists: boolean }> {
   try {
     // Check if user already has a wallet
-    console.log(`Checking if wallet exists for phone: ${phoneNumber}`);
+    console.log(`Checking if wallet exists for user`);
     const existingUser = await getUser(phoneNumber);
     if (existingUser && existingUser.walletAddress) {
       console.log(`User already has a wallet: ${existingUser.walletAddress}`);
@@ -130,7 +150,7 @@ export async function createWalletForUser(
     // Step 1: Create user first
     let user;
     try {
-      console.log(`Creating user for phone: ${phoneNumber}`);
+      console.log(`Creating user for user`);
 
       // Try creating user with phone account
       user = await privy.users().create({
@@ -141,7 +161,7 @@ export async function createWalletForUser(
           },
         ],
       });
-      console.log(`Created user with ID: ${user.id}`);
+      console.log(`Created user`);
     } catch (error) {
       console.error(
         `Phone user creation failed, trying alternative approach...`
@@ -199,7 +219,7 @@ export async function createWalletForUser(
           },
         ],
       });
-      console.log(`Created wallet with ID: ${wallet.id}`);
+      console.log(`Created wallet`);
     } catch (error) {
       if (error instanceof APIError) {
         console.log(`Wallet creation error: ${error.status} - ${error.name}`);
@@ -217,9 +237,6 @@ export async function createWalletForUser(
     const normalizedWalletAddress = String(walletAddress).toLowerCase().trim();
 
     console.log(`Wallet created successfully:`);
-    console.log(`   - Wallet ID: ${walletId}`);
-    console.log(`   - Address: ${walletAddress} -> ${normalizedWalletAddress}`);
-    console.log(`   - User ID: ${privyId}`);
 
     // Step 3: Note about gas sponsorship
     // Gas sponsorship policies may need to be configured through Privy Dashboard
@@ -230,7 +247,7 @@ export async function createWalletForUser(
 
     // Step 4: Save user data with normalized wallet address
     await saveUser(phoneNumber, privyId, normalizedWalletAddress, walletId);
-    console.log(`User data saved for phone: ${phoneNumber}`);
+    console.log(`User data saved`);
 
     return { privyId, walletAddress: normalizedWalletAddress, walletId, alreadyExists: false };
   } catch (error) {
@@ -245,7 +262,7 @@ export async function createWalletForUser(
 
 export async function getWalletBalance(
   phoneNumber: string
-): Promise<{ eth: string; usdc: string }> {
+): Promise<{ arbitrumEth: string; arbitrumUsdc: string; avalancheAVAX: string; avalancheUsdc: string }> {
   try {
     const user: User | null = await getUser(phoneNumber);
     if (!user) throw new Error("User not found");
@@ -265,8 +282,22 @@ export async function getWalletBalance(
       throw new Error(`RPC Error: ${response.data.error.message}`);
     }
 
+    const avalancheResponse = await axios.post(AVALANCHE_FUJI_RPC, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_getBalance",
+      params: [address, "latest"],
+    });
+
+    if (avalancheResponse.data.error) {
+      throw new Error(`RPC Error: ${avalancheResponse.data.error.message}`);
+    }
+
     const balanceWei = BigInt(response.data.result);
     const balanceEth = Number(balanceWei) / 1e18;
+    
+    const avalancheBalanceWei = BigInt(avalancheResponse.data.result);
+    const avalancheBalanceAVAX = Number(avalancheBalanceWei) / 1e18;
 
     // Get USDC balance
     const usdcBalance = await publicClient.readContract({
@@ -276,14 +307,22 @@ export async function getWalletBalance(
       args: [address as `0x${string}`],
     });
 
-    const usdcFormatted = formatUnits(usdcBalance as bigint, USDC_DECIMALS);
+    const avalancheUsdcBalance = await publicClientAvaxFuji.readContract({
+      address: AVALANCHE_FUJI_USDC_CONTRACT_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [address as `0x${string}`],
+    });
 
-    console.log(`ETH Balance: ${balanceEth.toFixed(6)} ETH`);
-    console.log(`USDC Balance: ${usdcFormatted} USDC`);
+    const arbitrumUsdcFormatted = formatUnits(usdcBalance as bigint, USDC_DECIMALS);
+    const avalancheUsdcFormatted = formatUnits(avalancheUsdcBalance as bigint, USDC_DECIMALS);
+
 
     return {
-      eth: `${balanceEth.toFixed(6)}`,
-      usdc: usdcFormatted,
+      arbitrumEth: `${balanceEth.toFixed(7)}`,
+      arbitrumUsdc: arbitrumUsdcFormatted,
+      avalancheAVAX: `${avalancheBalanceAVAX.toFixed(7)}`,
+      avalancheUsdc: avalancheUsdcFormatted,
     };
   } catch (error) {
     console.error("Error getting wallet balance:", error);
@@ -304,7 +343,7 @@ export async function createAccountFromExistingWallet(params: {
 }> {
   try {
     console.log(
-      `Creating Viem account for existing wallet: ${params.address} (walletId=${params.walletId})`
+      `Creating Viem account for existing wallet: ${params.address}`
     );
 
     const viemAccount = await createViemAccount(privy, {
@@ -344,10 +383,17 @@ export async function sendETH(
   walletId: string,
   toAddress: string,
   address: string,
-  amount: string
+  amount: string,
+  chain: any
 ): Promise<{ txHash: string; message: string }> {
   try {
-    console.log(`Sending ${amount} ETH from ${address} to ${toAddress}`);
+      // Determine chain and corresponding RPC/transport
+      const chainName = chain === "Avalanche Fuji Testnet" ? avalancheFuji: chain === "Arbitrum Sepolia" ? arbitrumSepolia : arbitrumSepolia;
+      const tokenSymbol = chain === "Avalanche Fuji Testnet" ? "AVAX" : "ETH";
+      const transport = chainName === avalancheFuji ? AVALANCHE_FUJI_RPC : ARBITRUM_SEPOLIA_RPC;
+      const chainPublicClient = chainName === avalancheFuji ? publicClientAvaxFuji : publicClient;
+    
+      console.log(`Sending ${amount} ${tokenSymbol} from ${address.substring(0, 10)}...${address.substring(36)} to ${address.substring(0, 10)}...${address.substring(36)} on ${chain}`);
 
     // Basic validation
     if (!ethers.isAddress(toAddress)) {
@@ -364,37 +410,42 @@ export async function sendETH(
         address: address as `0x${string}`,
       });
 
+
     // Create a wallet client for the EOA, in case we need a fallback
     const walletClient = createWalletClient({
       account: viemAccount,
-      chain: arbitrumSepolia,
-      transport: http(ARBITRUM_SEPOLIA_RPC),
+      chain: chainName,
+      transport: http(transport),
     });
 
     let txHash: string;
 
     try {
       // --- Primary attempt: Send via Smart Account Client with paymaster sponsorship ---
+
+      const pimlicoRPC = chain === "Avalanche Fuji Testnet" ? avalanchePaymasterUrl : arbitrumPaymasterUrl;
+
       if (!kernelSmartAccount?.entryPoint) {
         throw new Error(
           "Kernel smart account does not expose an entryPoint. Falling back to EOA."
         );
       }
-      if (!paymasterUrl || !bundlerUrl) {
+      if (!pimlicoRPC || !bundlerUrl) {
         throw new Error("Pimlico URLs not configured. Falling back to EOA.");
       }
 
       // Create Pimlico clients
+
       const paymasterClient = createPimlicoClient({
-        transport: http(paymasterUrl),
+        transport: http(pimlicoRPC),
         entryPoint: kernelSmartAccount.entryPoint,
       });
 
       const smartAccountClient = createSmartAccountClient({
         account: kernelSmartAccount,
-        chain: arbitrumSepolia,
+        chain: chainName,
         paymaster: paymasterClient,
-        bundlerTransport: http(bundlerUrl),
+        bundlerTransport: http(pimlicoRPC),
         userOperation: {
           estimateFeesPerGas: async () =>
             (await paymasterClient.getUserOperationGasPrice()).fast,
@@ -414,7 +465,7 @@ export async function sendETH(
       console.warn(
         "Smart Account transaction failed. Falling back to EOA transaction..."
       );
-      console.error("Smart Account error details:", smartAccountError);
+      console.error("Smart Account error details:");
 
       if (
         smartAccountError.cause?.message?.includes(
@@ -439,7 +490,7 @@ export async function sendETH(
     console.log("Transaction sent (tx hash):", txHash);
     console.log("Waiting for transaction confirmation...");
 
-    const receipt = await publicClient.waitForTransactionReceipt({
+    const receipt = await chainPublicClient.waitForTransactionReceipt({
       hash: txHash as `0x${string}`,
     });
 
@@ -449,14 +500,14 @@ export async function sendETH(
 
     return {
       txHash: txHash,
-      message: `Successfully sent ${amount} ETH to ${toAddress}`,
+      message: `Successfully sent ${amount} ${tokenSymbol} to ${toAddress} on ${chain}`,
     };
   } catch (error) {
     console.error("Error sending transaction:", error);
     if (error instanceof Error) {
-      throw new Error(`Failed to send ETH: ${error.message}`);
+      throw new Error(`Failed to send native token: ${error.message}`);
     }
-    throw new Error("Failed to send ETH: Unknown error");
+    throw new Error("Failed to send native token: Unknown error");
   }
 }
 
@@ -467,10 +518,11 @@ export async function sendUSDC(
   walletId: string,
   toAddress: string,
   address: string,
-  amount: string
+  amount: string,
+  chain: any
 ): Promise<{ txHash: string; message: string }> {
   try {
-    console.log(`Sending ${amount} USDC from ${address} to ${toAddress}`);
+    console.log(`Sending ${amount} USDC from ${address.substring(0, 10)}...${address.substring(36)} to ${address.substring(0, 10)}...${address.substring(36)} on ${chain}`);
 
     // Basic validation
     if (!ethers.isAddress(toAddress)) {
@@ -487,11 +539,17 @@ export async function sendUSDC(
         address: address as `0x${string}`,
       });
 
+    // Determine chain and corresponding RPC/transport
+      const chainName = chain === "Avalanche Fuji Testnet" ? avalancheFuji: chain === "Arbitrum Sepolia" ? arbitrumSepolia : arbitrumSepolia;
+      const usdcContractAddress = chain === "Avalanche Fuji Testnet" ?AVALANCHE_FUJI_USDC_CONTRACT_ADDRESS : USDC_CONTRACT_ADDRESS;
+      const transport = chainName === avalancheFuji ? AVALANCHE_FUJI_RPC : ARBITRUM_SEPOLIA_RPC;
+      const chainPublicClient = chainName === avalancheFuji ? publicClientAvaxFuji : publicClient;
+
     // Create a wallet client for fallback
     const walletClient = createWalletClient({
       account: viemAccount,
-      chain: arbitrumSepolia,
-      transport: http(ARBITRUM_SEPOLIA_RPC),
+      chain: chainName,
+      transport: http(transport),
     });
 
     // Parse USDC amount (6 decimals)
@@ -501,26 +559,29 @@ export async function sendUSDC(
 
     try {
       // Primary attempt: Smart Account with gas sponsorship
+
+      const pimlicoRPC = chain === "Avalanche Fuji Testnet" ? avalanchePaymasterUrl : arbitrumPaymasterUrl;
+
       if (!kernelSmartAccount?.entryPoint) {
         throw new Error(
           "Kernel smart account does not expose an entryPoint. Falling back to EOA."
         );
       }
-      if (!paymasterUrl || !bundlerUrl) {
+      if (!pimlicoRPC || !bundlerUrl) {
         throw new Error("Pimlico URLs not configured. Falling back to EOA.");
       }
 
       // Create Pimlico clients
       const paymasterClient = createPimlicoClient({
-        transport: http(paymasterUrl),
+        transport: http(pimlicoRPC),
         entryPoint: kernelSmartAccount.entryPoint,
       });
 
       const smartAccountClient = createSmartAccountClient({
         account: kernelSmartAccount,
-        chain: arbitrumSepolia,
+        chain: chainName,
         paymaster: paymasterClient,
-        bundlerTransport: http(bundlerUrl),
+        bundlerTransport: http(pimlicoRPC),
         userOperation: {
           estimateFeesPerGas: async () =>
             (await paymasterClient.getUserOperationGasPrice()).fast,
@@ -541,7 +602,7 @@ export async function sendUSDC(
 
       const hash = await smartAccountClient.sendTransaction({
         account: kernelSmartAccount,
-        to: USDC_CONTRACT_ADDRESS as `0x${string}`,
+        to: usdcContractAddress as `0x${string}`,
         data: callData,
         value: 0n, // No ETH value for ERC20 transfer
       });
@@ -552,7 +613,7 @@ export async function sendUSDC(
       console.warn(
         "Smart Account USDC transaction failed. Falling back to EOA transaction..."
       );
-      console.error("Smart Account error details:", smartAccountError);
+      console.error("Smart Account error details:");
 
       // Encode USDC transfer for EOA
       const { encodeFunctionData } = await import("viem");
@@ -563,7 +624,7 @@ export async function sendUSDC(
       });
 
       txHash = await walletClient.sendTransaction({
-        to: USDC_CONTRACT_ADDRESS as `0x${string}`,
+        to: usdcContractAddress as `0x${string}`,
         data: callData,
         value: 0n,
       });
@@ -572,7 +633,7 @@ export async function sendUSDC(
     console.log("USDC Transaction sent (tx hash):", txHash);
     console.log("Waiting for transaction confirmation...");
 
-    const receipt = await publicClient.waitForTransactionReceipt({
+    const receipt = await chainPublicClient.waitForTransactionReceipt({
       hash: txHash as `0x${string}`,
     });
 
@@ -582,7 +643,7 @@ export async function sendUSDC(
 
     return {
       txHash: txHash,
-      message: `Successfully sent ${amount} USDC to ${toAddress}`,
+      message: `Successfully sent ${amount} USDC to ${toAddress} on ${chain}`,
     };
   } catch (error) {
     console.error("Error sending USDC transaction:", error);
@@ -604,15 +665,19 @@ const faucetRequestLimits = {
   usdc: {
     maxPerDay: 12,
   },
+  avax: {
+    maxPerDay: 0.001,
+  },
 };
-const faucetUsage: Record<string, { eth: { date: string; total: number }; usdc: { date: string; total: number } }> = {};
+const faucetUsage: Record<string, { eth: { date: string; total: number }; avax: { date: string; total: number }; usdc: { date: string; total: number } }> = {};
 
-function canRequestFaucet(phoneNumber: string, token: "eth" | "usdc", amount: number): boolean {
+function canRequestFaucet(phoneNumber: string, token: "eth" | "usdc" | "avax", amount: number): boolean {
   const today = new Date().toISOString().slice(0, 10);
   if (!faucetUsage[phoneNumber]) {
     faucetUsage[phoneNumber] = {
       eth: { date: today, total: 0 },
       usdc: { date: today, total: 0 },
+      avax: { date: today, total: 0 },
     };
   }
   if (faucetUsage[phoneNumber][token].date !== today) {
@@ -621,12 +686,13 @@ function canRequestFaucet(phoneNumber: string, token: "eth" | "usdc", amount: nu
   return faucetUsage[phoneNumber][token].total + amount <= faucetRequestLimits[token].maxPerDay;
 }
 
-function recordFaucetUsage(phoneNumber: string, token: "eth" | "usdc", amount: number) {
+function recordFaucetUsage(phoneNumber: string, token: "eth" | "usdc" | "avax", amount: number) {
   const today = new Date().toISOString().slice(0, 10);
   if (!faucetUsage[phoneNumber]) {
     faucetUsage[phoneNumber] = {
       eth: { date: today, total: 0 },
       usdc: { date: today, total: 0 },
+      avax: { date: today, total: 0 },
     };
   }
   if (faucetUsage[phoneNumber][token].date !== today) {
@@ -652,15 +718,15 @@ export async function sendEthFaucet(phoneNumber: string): Promise<string> {
   // Method 1: Self-funded wallet (Primary)
   if (process.env.FAUCET_PRIVATE_KEY) {
     try {
-      const faucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
-      const faucetEthBalance = await provider.getBalance(faucetWallet.address);
+      const ethfaucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, arbitrumProvider);
+      const faucetEthBalance = await arbitrumProvider.getBalance(ethfaucetWallet.address);
       const requiredEth = ethers.parseEther(ETH_FAUCET_AMOUNT);
 
       let successMessage = "✅ *ETH Faucet Success!*\n\n";
 
       // Send ETH if available
       if (faucetEthBalance >= requiredEth) {
-        const ethTx = await faucetWallet.sendTransaction({
+        const ethTx = await ethfaucetWallet.sendTransaction({
           to: user.walletAddress,
           value: requiredEth,
         });
@@ -674,7 +740,92 @@ export async function sendEthFaucet(phoneNumber: string): Promise<string> {
 
       if (ethTxHash) {
         successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
-        successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${ethTxHash}\n`;
+        if (ethTxHash) {
+          successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${ethTxHash}\n`;
+        }
+        successMessage += `\nCheck balance with 'balance'`;
+        return successMessage;
+      }
+    } catch (error) {
+      console.error("Self-funded ETH faucet error:", error);
+    }
+  }
+
+  // Method 2: Circle SDK (Fallback)
+  // if (CIRCLE_API_KEY && CIRCLE_ENTITY_SECRET && user.walletId) {
+  //   try {
+  //     const client = initiateDeveloperControlledWalletsClient({
+  //       apiKey: CIRCLE_API_KEY,
+  //       entitySecret: CIRCLE_ENTITY_SECRET,
+  //     });
+
+  //     const walletResponse = await client.getWallet({ id: user.walletId });
+  //     if (!walletResponse.data?.wallet) throw new Error("Circle wallet not found");
+
+  //     await client.requestTestnetTokens({
+  //       address: walletResponse.data.wallet.address,
+  //       blockchain: TestnetBlockchain.ArbSepolia,
+  //       usdc: false,
+  //       native: true,
+  //       eurc: false,
+  //     });
+
+  //     recordFaucetUsage(phoneNumber, "eth", ethAmountNum);
+  //     return `✅ *ETH Faucet Request Sent!*\n\nTest ETH requested\n\n${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n\nProcessing: 1-2 minutes\nCheck with 'balance'`;
+  //   } catch (error) {
+  //     console.error("Circle SDK ETH error:", error);
+  //   }
+  // }
+
+  // Method 3: Manual instructions
+  return `ℹ️ Unable to process ETH faucet request at this time!`;
+}
+
+export async function sendAvaxFaucet(phoneNumber: string): Promise<string> {
+  const user = await getUser(phoneNumber);
+  if (!user) throw new Error("User not found. Create a wallet first.");
+
+  const AVAX_FAUCET_AMOUNT = "0.0001";
+  const avaxAmountNum = parseFloat(AVAX_FAUCET_AMOUNT);
+
+  // Limit check
+  if (!canRequestFaucet(phoneNumber, "avax", avaxAmountNum)) {
+    return `ℹ️ Daily AVAX faucet limit reached *(${faucetRequestLimits.avax.maxPerDay} AVAX per day).* Try again tomorrow.`;
+  }
+
+  let avaxTxHash = "";
+
+  // Method 1: Self-funded wallet (Primary)
+  if (process.env.FAUCET_PRIVATE_KEY) {
+    try {
+      const ethfaucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, arbitrumProvider);
+      const faucetEthBalance = await arbitrumProvider.getBalance(ethfaucetWallet.address);
+      const requiredEth = ethers.parseEther(AVAX_FAUCET_AMOUNT);
+
+      const avaxfaucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, avalancheProvider);
+      const faucetAvaxBalance = await avalancheProvider.getBalance(avaxfaucetWallet.address);
+      const requiredAvax = ethers.parseEther(AVAX_FAUCET_AMOUNT);
+
+      let successMessage = "✅ *AVAX Faucet Success!*\n\n";
+
+      // Send AVAX if available
+      if (faucetAvaxBalance >= requiredAvax) {
+        const avaxTx = await avaxfaucetWallet.sendTransaction({
+          to: user.walletAddress,
+          value: requiredAvax,
+        });
+        await avaxTx.wait();
+        avaxTxHash = avaxTx.hash;
+        successMessage += `*Sent ${AVAX_FAUCET_AMOUNT} AVAX*\n`;
+      } else {
+        successMessage += `⚠️ AVAX faucet empty\n`;
+      }
+
+      if (avaxTxHash) {
+        successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
+        if (avaxTxHash) {
+          successMessage += `TX Hash: https://subnets-test.avax.network/c-chain/tx/${avaxTxHash}\n`;
+        }
         successMessage += `\nCheck balance with 'balance'`;
         return successMessage;
       }
@@ -725,32 +876,52 @@ export async function sendUsdcFaucet(phoneNumber: string): Promise<string> {
     return `ℹ️ Daily USDC faucet limit reached *(${faucetRequestLimits.usdc.maxPerDay} USDC per day).* Try again tomorrow.`;
   }
 
-  let usdcTxHash = "";
+  let arbitrumUsdcTxHash = "";
+  let avalancheUsdcTxHash = "";
 
   // Method 1: Self-funded wallet (Primary)
   if (process.env.FAUCET_PRIVATE_KEY) {
     try {
-      const faucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, provider);
-      const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, faucetWallet);
-      const faucetUsdcBalance = await usdcContract.balanceOf(faucetWallet.address);
+      const arbitrumFaucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, arbitrumProvider);
+      const avalancheFaucetWallet = new ethers.Wallet(process.env.FAUCET_PRIVATE_KEY, avalancheProvider);
+      const arbitrumUsdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, arbitrumFaucetWallet);
+      const arbitrumFaucetUsdcBalance = await arbitrumUsdcContract.balanceOf(arbitrumFaucetWallet.address);
+      const avalancheUsdcContract = new ethers.Contract(AVALANCHE_FUJI_USDC_CONTRACT_ADDRESS, ERC20_ABI, avalancheFaucetWallet);
+      const avalancheFaucetUsdcBalance = await avalancheUsdcContract.balanceOf(avalancheFaucetWallet.address);
       const requiredUsdc = ethers.parseUnits(USDC_FAUCET_AMOUNT, USDC_DECIMALS);
 
       let successMessage = "✅ *USDC Faucet Success!*\n\n";
 
-      // Send USDC if available
-      if (faucetUsdcBalance >= requiredUsdc) {
-        const usdcTx = await usdcContract.transfer(user.walletAddress, requiredUsdc);
+      // Send USDC if available on Arbitrum Sepolia
+      if (arbitrumFaucetUsdcBalance >= requiredUsdc) {
+        const usdcTx = await arbitrumUsdcContract.transfer(user.walletAddress, requiredUsdc);
         await usdcTx.wait();
-        usdcTxHash = usdcTx.hash;
-        successMessage += `*Sent ${USDC_FAUCET_AMOUNT} USDC*\n`;
+        arbitrumUsdcTxHash = usdcTx.hash;
+        successMessage += `*Sent ${USDC_FAUCET_AMOUNT} USDC on Arbitrum Sepolia*\n`;
         recordFaucetUsage(phoneNumber, "usdc", usdcAmountNum);
       } else {
         successMessage += `⚠️ USDC faucet empty\n`;
       }
 
-      if (usdcTxHash) {
+      // Send USDC if available on Avalanche Fuji Testnet
+      if (avalancheFaucetUsdcBalance >= requiredUsdc) {
+        const usdcTx = await avalancheUsdcContract.transfer(user.walletAddress, requiredUsdc);
+        await usdcTx.wait();
+        avalancheUsdcTxHash = usdcTx.hash;
+        successMessage += `*Sent ${USDC_FAUCET_AMOUNT} USDC on Avalanche Fuji Testnet*\n`;
+        recordFaucetUsage(phoneNumber, "usdc", usdcAmountNum);
+      } else {
+        successMessage += `⚠️ USDC faucet empty\n`;
+      }
+
+      if (arbitrumUsdcTxHash || avalancheUsdcTxHash) {
         successMessage += `\n*To:* ${user.walletAddress.substring(0, 10)}...${user.walletAddress.substring(36)}\n`;
-        successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${usdcTxHash}\n`;
+        if (arbitrumUsdcTxHash) {
+          successMessage += `TX Hash: https://sepolia.arbiscan.io/tx/${arbitrumUsdcTxHash}\n`;
+        }
+        if (avalancheUsdcTxHash) {
+          successMessage += `TX Hash: https://subnets-test.avax.network/c-chain/tx/${avalancheUsdcTxHash}\n`;
+        }
         successMessage += `\nCheck balance with 'balance'`;
         return successMessage;
       }
@@ -765,8 +936,9 @@ export async function sendUsdcFaucet(phoneNumber: string): Promise<string> {
 
 // Parse send command for both ETH and USDC
 export function parseSendCommand(
-  message: string
-): { amount: string; address: string; token: "ETH" | "USDC" } | null {
+  message: string,
+  chain: number
+): { amount: string; address: string; chain: string; token: "ETH" | "USDC" | "AVAX" } | null {
   // Handle formats like:
   // "send 0.5 eth to 0x1234..."
   // "send 0.1 to 0x1234..." (defaults to ETH)
@@ -774,6 +946,20 @@ export function parseSendCommand(
 
   const ethRegex = /send\s+([\d.]+)(?:\s+eth)?\s+to\s+(0x[a-fA-F0-9]{40})/i;
   const usdcRegex = /send\s+([\d.]+)\s+usdc\s+to\s+(0x[a-fA-F0-9]{40})/i;
+  const avaxRegex = /send\s+([\d.]+)\s+avax\s+to\s+(0x[a-fA-F0-9]{40})/i;
+  const chainSelected = chain === 1 ? "Avalanche Fuji Testnet" : chain === 2 ? "Arbitrum Sepolia" : null;
+  if (!chainSelected) return null;
+
+  // Check for AVAX first
+  const avaxMatch = message.match(avaxRegex);
+  if (avaxMatch) {
+    return {
+      amount: avaxMatch[1],
+      address: avaxMatch[2],
+      chain: chainSelected,
+      token: "AVAX",
+    };
+  }
 
   // Check for USDC first
   const usdcMatch = message.match(usdcRegex);
@@ -781,6 +967,7 @@ export function parseSendCommand(
     return {
       amount: usdcMatch[1],
       address: usdcMatch[2],
+      chain: chainSelected,
       token: "USDC",
     };
   }
@@ -791,6 +978,7 @@ export function parseSendCommand(
     return {
       amount: ethMatch[1],
       address: ethMatch[2],
+      chain: chainSelected,
       token: "ETH",
     };
   }
@@ -803,6 +991,15 @@ export function validateAmount(amount: string): boolean {
   try {
     const parsed = parseFloat(amount);
     return parsed > 0 && parsed <= 10; // Max 10 ETH per transaction
+  } catch {
+    return false;
+  }
+}
+
+export function validateAVAXAmount(amount: string): boolean {
+  try {
+    const parsed = parseFloat(amount);
+    return parsed > 0 && parsed <= 100; // Max 100 AVAX per transaction
   } catch {
     return false;
   }
@@ -831,15 +1028,46 @@ export async function getTransactionHistory(
 
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ARBITRUM_CHAIN_ID = '421614'; // Arbitrum Sepolia
+    const AVALANCHE_CHAIN_ID = '43113'; // Avalanche Fuji Testnet 
     const ARBITRUM_SEPOLIA_URL = 'https://api.etherscan.io/v2/api';
     const ARBITRUM_SEPOLIA_URL_USDC = 'https://api.etherscan.io/v2/api';
     const USDC_CONTRACT = USDC_CONTRACT_ADDRESS.toLowerCase();
+    const AVALANCHE_USDC_CONTRACT = AVALANCHE_FUJI_USDC_CONTRACT_ADDRESS.toLowerCase();
 
     // Fetch ETH transactions (get 20 to ensure we capture recent ones after sorting with USDC)
     const ethParams = new URLSearchParams({
       chainid: ARBITRUM_CHAIN_ID,
       module: 'account',
       action: 'txlist',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '20',
+      sort: 'desc',
+      apikey: ETHERSCAN_API_KEY || "",
+    });
+
+    // Fetch ETH transactions (get 20 to ensure we capture recent ones after sorting with USDC)
+    const avaxParams = new URLSearchParams({
+      chainid: AVALANCHE_CHAIN_ID,
+      module: 'account',
+      action: 'txlist',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: '1',
+      offset: '20',
+      sort: 'desc',
+      apikey: ETHERSCAN_API_KEY || "",
+    });
+
+    // Fetch ERC20 token transfers (USDC) (get 20 to ensure we capture recent ones after sorting with ETH)
+    const avaxtokenParams = new URLSearchParams({
+      chainid: AVALANCHE_CHAIN_ID,
+      module: 'account',
+      action: 'tokentx',
+      contractaddress: AVALANCHE_USDC_CONTRACT,
       address,
       startblock: '0',
       endblock: '99999999',
@@ -865,11 +1093,21 @@ export async function getTransactionHistory(
     });
 
     const ethUrl = `${ARBITRUM_SEPOLIA_URL}?${ethParams}`;
+    const avaxUrl = `${ARBITRUM_SEPOLIA_URL}?${avaxParams}`;
+    const avaxtokenUrl = `${ARBITRUM_SEPOLIA_URL_USDC}?${avaxtokenParams}`;
     const tokenUrl = `${ARBITRUM_SEPOLIA_URL_USDC}?${tokenParams}`;
 
     console.log('Fetching ETH transactions...');
     const ethResponse = await axios.get(ethUrl);
     console.log(`ETH Response Status: ${ethResponse.data.status}, Count: ${ethResponse.data.result?.length || 0}`);
+
+    console.log('Fetching AVAX transactions...');
+    const avaxResponse = await axios.get(avaxUrl);
+    console.log(`AVAX Response Status: ${avaxResponse.data.status}, Count: ${avaxResponse.data.result?.length || 0}`);
+    
+    console.log('Fetching AVAX transactions...');
+    const avaxUsdcResponse = await axios.get(avaxtokenUrl);
+    console.log(`Avalanche USDC Response Status: ${avaxUsdcResponse.data.status}, Count: ${avaxUsdcResponse.data.result?.length || 0}`);
     
     console.log('Fetching USDC token transfers...');
     const tokenResponse = await axios.get(tokenUrl);
@@ -880,13 +1118,32 @@ export async function getTransactionHistory(
 
     // Build per-token lists (fetch up to 20 from each, then sort combined and take top 10)
     const ethTransactions: any[] = [];
+    const avaxTransactions: any[] = [];
     const usdcTransactions: any[] = [];
+    const avaxUsdcTransactions: any[] = [];
 
     if (ethResponse.data.status === '1' && Array.isArray(ethResponse.data.result) && ethResponse.data.result.length > 0) {
       for (const tx of ethResponse.data.result) {
         if (tx.value !== '0') {
           ethTransactions.push({
             type: 'ETH',
+            timestamp: parseInt(tx.timeStamp),
+            hash: tx.hash,
+            from: tx.from.toLowerCase(),
+            to: tx.to?.toLowerCase(),
+            value: tx.value,
+            status: tx.txreceipt_status,
+            date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+          });
+        }
+      }
+    }
+
+    if (avaxResponse.data.status === '1' && Array.isArray(avaxResponse.data.result) && avaxResponse.data.result.length > 0) {
+      for (const tx of avaxResponse.data.result) {
+        if (tx.value !== '0') {
+          avaxTransactions.push({
+            type: 'AVAX',
             timestamp: parseInt(tx.timeStamp),
             hash: tx.hash,
             from: tx.from.toLowerCase(),
@@ -918,8 +1175,27 @@ export async function getTransactionHistory(
       console.log('No USDC transactions found or API error:', tokenResponse.data);
     }
 
+    if (avaxUsdcResponse.data.status === '1' && Array.isArray(avaxUsdcResponse.data.result) && avaxUsdcResponse.data.result.length > 0) {
+      console.log(`Found ${avaxUsdcResponse.data.result.length} AVAX USDC transactions`);
+      for (const tx of avaxUsdcResponse.data.result) {
+        avaxUsdcTransactions.push({
+          type: 'AVAX_USDC',
+          timestamp: parseInt(tx.timeStamp),
+          hash: tx.hash,
+          from: tx.from.toLowerCase(),
+          to: tx.to?.toLowerCase(),
+          value: tx.value,
+          tokenDecimal: tx.tokenDecimal || USDC_DECIMALS,
+          status: tx.txreceipt_status,
+          date: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString(),
+        });
+      }
+    } else {
+      console.log('No Avalanche USDC transactions found or API error:', avaxUsdcResponse.data);
+    }
+
     // Combine all transactions and sort by timestamp (most recent first)
-    const allTransactions = [...ethTransactions, ...usdcTransactions].sort((a, b) => b.timestamp - a.timestamp);
+    const allTransactions = [...ethTransactions, ...avaxTransactions, ...avaxUsdcTransactions, ...usdcTransactions].sort((a, b) => b.timestamp - a.timestamp);
     
     // Take only the top 10 most recent transactions
     const topTenTransactions = allTransactions.slice(0, 10);
@@ -936,17 +1212,19 @@ export async function getTransactionHistory(
       const to = `${tx.to?.substring(0, 8)}...${tx.to?.substring(36)}`;
       const isOutgoing = tx.from === address;
       const statusEmoji = tx.status === '1' ? '✅' : '❌';
+      const chain = tx.type === 'AVAX' || tx.type === 'AVAX_USDC' ? 'Avalanche Fuji Testnet' : 'Arbitrum Sepolia';
+      const explorerUrl = tx.type === 'AVAX' || tx.type === 'AVAX_USDC' ? `https://subnets-test.avax.network/c-chain/tx/` : `https://sepolia.arbiscan.io/tx/`;
 
       let amount: string;
-      if (tx.type === 'ETH') {
+      if (tx.type === 'ETH' || tx.type === 'AVAX') {
         amount = `${(parseFloat(tx.value) / 1e18).toFixed(6)}`;
       } else {
         amount = `${(parseFloat(tx.value) / Math.pow(10, tx.tokenDecimal)).toFixed(2)}`;
       }
 
-      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n\n From: ${from}\n\n To: ${to}\n\n Date: ${tx.date} ${statusEmoji}\n\n TX Hash: https://sepolia.arbiscan.io/tx/${tx.hash}\n\n\n`;
+      historyText += `${index + 1}. ${isOutgoing ? 'Sent' : 'Received'} ${amount} [${tx.type}]\n From: ${from}\n To: ${to}\n Chain: ${chain}\n Date: ${tx.date} ${statusEmoji}\n TX Hash: ${explorerUrl}${tx.hash}\n\n`;
     });
-
+    console.log('Compiled transaction history text:', historyText);
     return historyText;
   } catch (error) {
     console.error("Error getting transaction history:", error);
@@ -980,12 +1258,12 @@ export async function estimateGasCost(
   value: string
 ): Promise<string> {
   try {
-    const gasLimit = await provider.estimateGas({
+    const gasLimit = await arbitrumProvider.estimateGas({
       to,
       value: ethers.parseEther(value),
     });
 
-    const feeData = await provider.getFeeData();
+    const feeData = await arbitrumProvider.getFeeData();
     const gasCost = gasLimit * (feeData.gasPrice || BigInt(0));
 
     return ethers.formatEther(gasCost);

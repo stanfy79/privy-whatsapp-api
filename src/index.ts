@@ -11,7 +11,7 @@ const app: Application = express();
 // ✅ Enable CORS
 app.use(
   cors({
-    origin: ["http://localhost:8080", "https://your-frontend-domain.com"], // whitelist dev + prod
+    origin: ["http://localhost:5000", "https://your-frontend-domain.com"], // whitelist dev + prod
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
