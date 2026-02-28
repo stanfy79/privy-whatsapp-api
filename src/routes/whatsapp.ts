@@ -144,7 +144,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         } else {
           await sendWhatsAppMessage(
             phoneNumber,
-            `✅ *Wallet Created Successfully!*\n\n *Address:*\n${result.walletAddress}`
+            `✅ *Wallet Created Successfully!*\n\n *Address:*\n${result.walletAddress}\n\n*Available commands:\n\nReceive test ETH\nReceive test AVAX\nReceive test USDC\nBalance\nSend [amount] eth to [address]\nSend [amount] avax to [address]\nSend [amount] usdc to [address]\nWallet address\nHistory\nHelp\n\n\nNetwork: Arbitrum Sepolia & Avalanche Fuji Testnet`
           );
         }
       } catch (error) {
@@ -159,9 +159,9 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         const balance = await getWalletBalance(phoneNumber);
         await sendWhatsAppMessage(
           phoneNumber,
-          `*🏦 Your Wallet Balance:*\n\n*Network:* Arbitrum Sepolia \n${balance.arbitrumEth} ETH\n ${balance.arbitrumUsdc} USDC\n\n*Network:* Avalanche Fuji \n${balance.avalancheAVAX} AVAX\n ${balance.avalancheUsdc} USDC`
+          `*🏦 Your Wallet Balance:*\n\n*Network:* Arbitrum Sepolia \n${balance.arbitrumEth} ETH\n${balance.arbitrumUsdc} USDC\n\n*Network:* Avalanche Fuji \n${balance.avalancheAVAX} AVAX\n${balance.avalancheUsdc} USDC`
         );
-        console.log(`*🏦 Your Wallet Balance:*\n\n*Network:* Arbitrum Sepolia \n*${balance.arbitrumEth} ETH\n${balance.arbitrumUsdc} USDC*\n\n*Network:* Avalanche Fuji \n*${balance.avalancheAVAX} AVAX\n${balance.avalancheUsdc} USDC*`)
+        // console.log(`*🏦 Your Wallet Balance:*\n\n*Network:* Arbitrum Sepolia \n*${balance.arbitrumEth} ETH\n${balance.arbitrumUsdc} USDC*\n\n*Network:* Avalanche Fuji \n*${balance.avalancheAVAX} AVAX\n${balance.avalancheUsdc} USDC*`)
       } catch (error) {
         console.error("Balance error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to check balance. Create a wallet first with 'create wallet'.");
@@ -185,9 +185,10 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
     // --- Command: RECEIVE TEST TOKEN ---
     else if (text.includes("request test usdc") || text.includes("test usdc") || text.includes("Receive test usdc" )) {
       try {
+        await sendWhatsAppMessage(phoneNumber, "⌛ Processing your request for test USDC...");
         const faucetResult = await sendUsdcFaucet(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, ` *Test USDC Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet % Avalanche Fuji testnet!`);
-        console.log(` *Test USDC Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
+        // console.log(` *Test USDC Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
@@ -196,9 +197,10 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
     else if (text.includes("request test eth") || text.includes("test eth") || text.includes("receive test eth" )) {
       try {
+        await sendWhatsAppMessage(phoneNumber, "⌛ Processing your request for test ETH...");
         const faucetResult = await sendEthFaucet(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, ` *Test ETH Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`);
-        console.log(` *Test ETH Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
+        // console.log(` *Test ETH Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
@@ -207,9 +209,10 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
 
     else if (text.includes("test avax") || text.includes("request test avax" ) || text.includes("receive test avax" )) {
       try {
+        await sendWhatsAppMessage(phoneNumber, "⌛ Processing your request for test AVAX...");
         const faucetResult = await sendAvaxFaucet(phoneNumber);
         await sendWhatsAppMessage(phoneNumber, ` *Test AVAX Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`);
-        console.log(` *Test AVAX Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
+        // console.log(` *Test AVAX Faucet*\n\n${faucetResult}\n\n\n*Note:* BlockBot is currently in beta. Do *NOT* send real funds yet, as we are currently on Arbitrum Sepolia testnet & Avalanche Fuji testnet!`)
       } catch (error) {
         console.error("Faucet error:", error);
         await sendWhatsAppMessage(phoneNumber, "⚠️ Failed to send test tokens. Make sure you have a wallet first.");
@@ -237,7 +240,7 @@ router.post("/whatsapp-webhook", async (req: Request, res: Response) => {
         // Ask user to select chain
         await sendWhatsAppMessage(
           phoneNumber,
-          ` *Select Chain*\n\nTo select chain just type in the chain No. *[Example (1) or (2)]* \n\n*1. Avalanche Fuji Testnet*\n*2. Arbitrum Sepolia*\n\n\nPlease be sure the wallet you are sending to supports the selected chain.`
+          ` *Select Chain*\n\nRespond with '1' to select Avalanche Fuji Testnet, or '2' for Arbitrum Sepolia. \n\nℹ️ Please be sure the wallet you are sending to supports the selected chain.`
         );
         console.log(` *Select Chain*\n\nTo select chain just type in the chain No. *[Example (1) or (2)]* \n\n*1. Avalanche Fuji Testnet*\n*2. Arbitrum Sepolia*\n\n\nPlease be sure the wallet you are sending to supports the selected chain.`)
         console.log(`🔄 Pending send command stored for user: "${text}"`);
