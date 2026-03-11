@@ -13,6 +13,8 @@
 ### Won’t Have
 - Users sending transactions to a **tag or an ENS (.eth) domain address** instead of typing out long addresses.
 - A **privacy-layer integration**, such as the **E-ERC token standard**, that allows users to choose whether to send fully private transactions.
+- Merchants or companies able to pay invoice of freelancers and gig workers.
+
 
 ---
 
@@ -30,3 +32,4 @@ It can be fully customized to match your website’s design and helps you **enga
 - **Customizable design variants** — compact, QR code, and large.
 - **Light or dark theme mode** support.
 - Compatibility tested with **ReactJS, Next.js, TypeScript, HTML, and JavaScript**.
+
