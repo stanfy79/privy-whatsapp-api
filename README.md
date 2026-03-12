@@ -28,9 +28,10 @@ It can be fully customized to match your website’s design and helps you **enga
 
 ### BlockBot Widget Features
 
-- **Arbitrum Sepolia** blockchain testnet transaction support.
+- **Avalanche Fuji** blockchain testnet transaction support.
 - **Customizable design variants** — compact, QR code, and large.
 - **Light or dark theme mode** support.
 - Compatibility tested with **ReactJS, Next.js, TypeScript, HTML, and JavaScript**.
+
 
 
