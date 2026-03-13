@@ -33,5 +33,9 @@ It can be fully customized to match your website’s design and helps you **enga
 - **Light or dark theme mode** support.
 - Compatibility tested with **ReactJS, Next.js, TypeScript, HTML, and JavaScript**.
 
+### Check our documentation to see how to integrate BlockBot's widget into you app - 
+[https://blockchain-gazette.gitbook.io/blockbot/widget-setup-guide-steps/installation-quick-start](https://blockchain-gazette.gitbook.io/blockbot/widget-setup-guide-steps/installation-quick-start)
+
+
 
 
